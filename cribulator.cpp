@@ -79,6 +79,7 @@ all that exist instead of needing to name them individually.
 
 
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <fstream>
 
@@ -155,8 +156,8 @@ const bool CRIBBER_WINS = true;
 const bool NON_CRIBBER_WINS = true;
 const bool SOMEONE_HAS_WON = true;
 const string INDENTATION = "\t\t\t";  // BLAH why aren't the following ones capitalized?
-const vector<string> CORRECTION_VARIATIONS = {"redo", "undo", "fix", "correct", "r", "u", "c"};
-const vector<string> HISTO_VARIATIONS = {"h", "histo", "hist", "histogram"};
+const vector<string> CORRECTION_VARIATIONS = {"fix", "correct", "undo", "redo", "c"};
+const vector<string> HISTO_VARIATIONS = {"histo", "hist", "histogram"};
 const vector<string> WIN_VARIATIONS = {"w", "win"};
 const vector<string> NOBS_VARIATIONS = {"n", "nobs", "knobs"};
 const vector<string> FOK_VARIATIONS = {"fok", "four", "foak"};
@@ -176,6 +177,8 @@ bool userWantsToCorrect1stCribCut = false;
 int lastCutCardIndex = -1;  	// used as part of the correction mechanism. Needed because of where 
 							    // the backup snapshot is taken. We need to correct the crib cut data
 								// for the cribber using this (we -1 for this cut in the cribber's data)
+string previousInvalidInput = "";
+int previousInvalidInputFix = -1;
 
 
 // ----- FUNCTION PROTOTYPES -----
@@ -212,6 +215,7 @@ void backupVariables(vector<Player*>, vector<Player*>, Player*, Player* &, Playe
 void restoreBackupOfVariables(vector<Player*>, vector<Player*>, Player* &, Player*, Player* &, Player*);
 void undoLastDrawForWhoGets1stCrib(vector<Player*>);
 bool userWantsToCorrect1stCribDraw(vector<Player*>);
+int mystoi(string);
 
 
 
@@ -272,7 +276,7 @@ int main() {
 				if (!search(userInput, NUMBERS))
 					winner = winHandler("someone won via pegging", cribber, nonCribber, 0);
 				else 
-					winner = winHandler("nonCribber wins via hand", cribber, nonCribber, pointValueOf(userInput) );
+					winner = winHandler("nonCribber wins via hand", cribber, nonCribber, pointValueOf(userInput));
 				if (winner != NULL)  break;
 			}
 			if (userWantsToCorrectRound) {
@@ -287,7 +291,7 @@ int main() {
 			cout << cribber->indtAdjstdName << "'s hand:  ";
 			userInput = getlineMine();
 			if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
-				winner = winHandler("cribber wins via hand", cribber, nonCribber, pointValueOf(userInput) );
+				winner = winHandler("cribber wins via hand", cribber, nonCribber, pointValueOf(userInput));
 				if (winner != NULL)  break;
 			}
 			if (userWantsToCorrectRound) {
@@ -302,7 +306,7 @@ int main() {
 			cout << cribber->indtAdjstdName << "'s crib:  ";
 			userInput = getlineMine();
 			if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
-				winner = winHandler("cribber wins via crib", cribber, nonCribber, pointValueOf(userInput) );
+				winner = winHandler("cribber wins via crib", cribber, nonCribber, pointValueOf(userInput));
 				if (winner != NULL)  break;
 			}
 			if (userWantsToCorrectRound) {
@@ -460,6 +464,7 @@ bool cutTheStarterCard(Player* cribber, Player* nonCribber) {
 
 bool handleInputFlags(string userInput, Player* player) {
 // returns true if the flags indicate a win; false otherwise
+// Be careful about the order you check these, especially the ones with single letter variations...
 	if (search(userInput, NOBS_VARIATIONS) ){
 		player->nobsToday++;
 		player->nobsAT++;
@@ -472,7 +477,7 @@ bool handleInputFlags(string userInput, Player* player) {
 	if (search(userInput, SUPER_FLUSH_VARIATIONS) ){
 		player->superFlushesToday++;
 		player->superFlushesAT++;
-	} else if (search(userInput, FLUSH_VARIATIONS) ){
+	} else if (search(userInput, FLUSH_VARIATIONS) && !search(userInput, FOK_VARIATIONS) ){ // don't let 'fok' also count as a flush
 		player->flushesToday++;
 		player->flushesAT++;
 	}
@@ -504,12 +509,12 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
 		cout << "How many points were needed?  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;  // user wants to make a correction; no winner rn
-		cribber->unusedPtsThisGame[NIBS] += (2 - stoi(userInput) );
+		cribber->unusedPtsThisGame[NIBS] += (2 - mystoi(userInput) );
 		cribber->unusedPtsToday[NIBS] += cribber->unusedPtsThisGame[NIBS];
 		cribber->unusedPtsAT[NIBS] += cribber->unusedPtsThisGame[NIBS];
 
 		// calc winner's pegged points for this game
-		cribber->peggedPtsThisGame = 121 - stoi(userInput) 
+		cribber->peggedPtsThisGame = 121 - mystoi(userInput) 
 										 - cribber->handPtsThisGame 
 										 - cribber->cribPtsThisGame 
 										 - ((cribber->numNibsThisGame - 1) * 2); // -1 because we've already incr. numNibsThisGame in cut function								 
@@ -519,14 +524,14 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		// record loser's position
 		cout << " " << nonCribber->indtAdjstdName << "'s pos:  ";  // nonCribber lost
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		nonCribber->losingPositionToday += stoi(userInput);
+		nonCribber->losingPositionToday += mystoi(userInput);
 
 		// use that to calc the winner's winning margin
-		cribber->winMarginsToday.push_back(121 - stoi(userInput));
-		cribber->histoWinMarginsAT[121 - stoi(userInput)]++;
+		cribber->winMarginsToday.push_back(121 - mystoi(userInput));
+		cribber->histoWinMarginsAT[121 - mystoi(userInput)]++;
 
 		// and now calc loser's pegged points for this game
-		nonCribber->peggedPtsThisGame = stoi(userInput)
+		nonCribber->peggedPtsThisGame = mystoi(userInput)
 									    - nonCribber->handPtsThisGame 
 									    - nonCribber->cribPtsThisGame 
 									    - (nonCribber->numNibsThisGame * 2);								 
@@ -542,32 +547,32 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		cout << nonCribber->indtAdjstdName << "'s hand:  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 		handleInputFlags(userInput, nonCribber);
-		nonCribber->handPtsThisGame += stoi(userInput);
-		nonCribber->histoHandPtsToday[stoi(userInput)]++;
-		nonCribber->histoHandPtsAT[stoi(userInput)]++;
-		nonCribber->unusedPtsThisGame[HAND] += stoi(userInput);
-		nonCribber->unusedPtsToday[HAND] += stoi(userInput);
-		nonCribber->unusedPtsAT[HAND] += stoi(userInput);
+		nonCribber->handPtsThisGame += mystoi(userInput);
+		nonCribber->histoHandPtsToday[mystoi(userInput)]++;
+		nonCribber->histoHandPtsAT[mystoi(userInput)]++;
+		nonCribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+		nonCribber->unusedPtsToday[HAND] += mystoi(userInput);
+		nonCribber->unusedPtsAT[HAND] += mystoi(userInput);
 
 		cout << cribber->indtAdjstdName << "'s hand:  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 		handleInputFlags(userInput, cribber);
-		cribber->handPtsThisGame += stoi(userInput);
-		cribber->histoHandPtsToday[stoi(userInput)]++;
-		cribber->histoHandPtsAT[stoi(userInput)]++;
-		cribber->unusedPtsThisGame[HAND] += stoi(userInput);
-		cribber->unusedPtsToday[HAND] += stoi(userInput);
-		cribber->unusedPtsAT[HAND] += stoi(userInput);
+		cribber->handPtsThisGame += mystoi(userInput);
+		cribber->histoHandPtsToday[mystoi(userInput)]++;
+		cribber->histoHandPtsAT[mystoi(userInput)]++;
+		cribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+		cribber->unusedPtsToday[HAND] += mystoi(userInput);
+		cribber->unusedPtsAT[HAND] += mystoi(userInput);
 
 		cout << cribber->indtAdjstdName << "'s crib:  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 		handleInputFlags(userInput, cribber);
-		cribber->cribPtsThisGame += stoi(userInput);
-		cribber->histoCribPtsToday[stoi(userInput)]++;
-		cribber->histoCribPtsAT[stoi(userInput)]++;
-		cribber->unusedPtsThisGame[CRIB] += stoi(userInput);
-		cribber->unusedPtsToday[CRIB] += stoi(userInput);
-		cribber->unusedPtsAT[CRIB] += stoi(userInput);
+		cribber->cribPtsThisGame += mystoi(userInput);
+		cribber->histoCribPtsToday[mystoi(userInput)]++;
+		cribber->histoCribPtsAT[mystoi(userInput)]++;
+		cribber->unusedPtsThisGame[CRIB] += mystoi(userInput);
+		cribber->unusedPtsToday[CRIB] += mystoi(userInput);
+		cribber->unusedPtsAT[CRIB] += mystoi(userInput);
 
 		return cribber;
 	}
@@ -586,7 +591,7 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		peggedHypothetically = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 
 		if (toupper(cribber->name[0]) == toupper(userInput[0]) ) {  // cribber won
-			cribber->unusedPtsThisGame[PEGGED] += (stoi(peggedHypothetically) - stoi(ptsNeeded) );
+			cribber->unusedPtsThisGame[PEGGED] += (mystoi(peggedHypothetically) - mystoi(ptsNeeded) );
 			cribber->unusedPtsToday[PEGGED] += cribber->unusedPtsThisGame[PEGGED];
 			cribber->unusedPtsAT[PEGGED] += cribber->unusedPtsThisGame[PEGGED];
 
@@ -601,14 +606,14 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 			// record loser's position
 			cout << " " << nonCribber->indtAdjstdName << "'s pos:  ";  // nonCribber lost
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-			nonCribber->losingPositionToday += stoi(userInput);
+			nonCribber->losingPositionToday += mystoi(userInput);
 
 			// use that to calc the winner's winning margin
-			cribber->winMarginsToday.push_back(121 - stoi(userInput));
-			cribber->histoWinMarginsAT[121 - stoi(userInput)]++;
+			cribber->winMarginsToday.push_back(121 - mystoi(userInput));
+			cribber->histoWinMarginsAT[121 - mystoi(userInput)]++;
 
 			// and now calc loser's pegged points for this game
-			nonCribber->peggedPtsThisGame = stoi(userInput)
+			nonCribber->peggedPtsThisGame = mystoi(userInput)
 											- nonCribber->handPtsThisGame 
 											- nonCribber->cribPtsThisGame 
 											- (nonCribber->numNibsThisGame * 2);								 
@@ -619,37 +624,37 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 			cout << nonCribber->indtAdjstdName << "'s hand:  ";
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 			handleInputFlags(userInput, nonCribber);
-			nonCribber->handPtsThisGame += stoi(userInput);
-			nonCribber->histoHandPtsToday[stoi(userInput)]++;
-			nonCribber->histoHandPtsAT[stoi(userInput)]++;
-			nonCribber->unusedPtsThisGame[HAND] += stoi(userInput);
-			nonCribber->unusedPtsToday[HAND] += stoi(userInput);
-			nonCribber->unusedPtsAT[HAND] += stoi(userInput);
+			nonCribber->handPtsThisGame += mystoi(userInput);
+			nonCribber->histoHandPtsToday[mystoi(userInput)]++;
+			nonCribber->histoHandPtsAT[mystoi(userInput)]++;
+			nonCribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+			nonCribber->unusedPtsToday[HAND] += mystoi(userInput);
+			nonCribber->unusedPtsAT[HAND] += mystoi(userInput);
 			
 			cout << cribber->indtAdjstdName << "'s hand:  ";
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 			handleInputFlags(userInput, cribber);
-			cribber->handPtsThisGame += stoi(userInput);			
-			cribber->histoHandPtsToday[stoi(userInput)]++;
-			cribber->histoHandPtsAT[stoi(userInput)]++;
-			cribber->unusedPtsThisGame[HAND] += stoi(userInput);
-			cribber->unusedPtsToday[HAND] += stoi(userInput);
-			cribber->unusedPtsAT[HAND] += stoi(userInput);
+			cribber->handPtsThisGame += mystoi(userInput);			
+			cribber->histoHandPtsToday[mystoi(userInput)]++;
+			cribber->histoHandPtsAT[mystoi(userInput)]++;
+			cribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+			cribber->unusedPtsToday[HAND] += mystoi(userInput);
+			cribber->unusedPtsAT[HAND] += mystoi(userInput);
 
 			cout << cribber->indtAdjstdName << "'s crib:  ";
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 			handleInputFlags(userInput, cribber);
-			cribber->cribPtsThisGame += stoi(userInput);
-			cribber->histoCribPtsToday[stoi(userInput)]++;
-			cribber->histoCribPtsAT[stoi(userInput)]++;
-			cribber->unusedPtsThisGame[CRIB] += stoi(userInput);
-			cribber->unusedPtsToday[CRIB] += stoi(userInput);
-			cribber->unusedPtsAT[CRIB] += stoi(userInput);
+			cribber->cribPtsThisGame += mystoi(userInput);
+			cribber->histoCribPtsToday[mystoi(userInput)]++;
+			cribber->histoCribPtsAT[mystoi(userInput)]++;
+			cribber->unusedPtsThisGame[CRIB] += mystoi(userInput);
+			cribber->unusedPtsToday[CRIB] += mystoi(userInput);
+			cribber->unusedPtsAT[CRIB] += mystoi(userInput);
 
 			return cribber;
 		}
 		else {  // nonCribber won
-			nonCribber->unusedPtsThisGame[PEGGED] += (stoi(peggedHypothetically) - stoi(ptsNeeded) );
+			nonCribber->unusedPtsThisGame[PEGGED] += (mystoi(peggedHypothetically) - mystoi(ptsNeeded) );
 			nonCribber->unusedPtsToday[PEGGED] += nonCribber->unusedPtsThisGame[PEGGED];
 			nonCribber->unusedPtsAT[PEGGED] += nonCribber->unusedPtsThisGame[PEGGED];
 
@@ -664,14 +669,14 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 			// record loser's position
 			cout << " " << cribber->indtAdjstdName << "'s pos:  ";  // cribber lost
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-			cribber->losingPositionToday += stoi(userInput);
+			cribber->losingPositionToday += mystoi(userInput);
 
 			// use that to calc the winner's winning margin
-			nonCribber->winMarginsToday.push_back(121 - stoi(userInput));
-			nonCribber->histoWinMarginsAT[121 - stoi(userInput)]++;
+			nonCribber->winMarginsToday.push_back(121 - mystoi(userInput));
+			nonCribber->histoWinMarginsAT[121 - mystoi(userInput)]++;
 
 			// and now calc loser's pegged points for this game
-			cribber->peggedPtsThisGame = stoi(userInput)
+			cribber->peggedPtsThisGame = mystoi(userInput)
 											- cribber->handPtsThisGame 
 											- cribber->cribPtsThisGame 
 											- (cribber->numNibsThisGame * 2);								 
@@ -682,32 +687,32 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 			cout << nonCribber->indtAdjstdName << "'s hand:  ";
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 			handleInputFlags(userInput, nonCribber);
-			nonCribber->handPtsThisGame += stoi(userInput);
-			nonCribber->histoHandPtsToday[stoi(userInput)]++;
-			nonCribber->histoHandPtsAT[stoi(userInput)]++;
-			nonCribber->unusedPtsThisGame[HAND] += stoi(userInput);
-			nonCribber->unusedPtsToday[HAND] += stoi(userInput);
-			nonCribber->unusedPtsAT[HAND] += stoi(userInput);
+			nonCribber->handPtsThisGame += mystoi(userInput);
+			nonCribber->histoHandPtsToday[mystoi(userInput)]++;
+			nonCribber->histoHandPtsAT[mystoi(userInput)]++;
+			nonCribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+			nonCribber->unusedPtsToday[HAND] += mystoi(userInput);
+			nonCribber->unusedPtsAT[HAND] += mystoi(userInput);
 
 			cout << cribber->indtAdjstdName << "'s hand:  ";
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 			handleInputFlags(userInput, cribber);
-			cribber->handPtsThisGame += stoi(userInput);
-			cribber->histoHandPtsToday[stoi(userInput)]++;
-			cribber->histoHandPtsAT[stoi(userInput)]++;
-			cribber->unusedPtsThisGame[HAND] += stoi(userInput);
-			cribber->unusedPtsToday[HAND] += stoi(userInput);
-			cribber->unusedPtsAT[HAND] += stoi(userInput);
+			cribber->handPtsThisGame += mystoi(userInput);
+			cribber->histoHandPtsToday[mystoi(userInput)]++;
+			cribber->histoHandPtsAT[mystoi(userInput)]++;
+			cribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+			cribber->unusedPtsToday[HAND] += mystoi(userInput);
+			cribber->unusedPtsAT[HAND] += mystoi(userInput);
 			
 			cout << cribber->indtAdjstdName << "'s crib:  ";
 			userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 			handleInputFlags(userInput, cribber);
-			cribber->cribPtsThisGame += stoi(userInput);
-			cribber->histoCribPtsToday[stoi(userInput)]++;
-			cribber->histoCribPtsAT[stoi(userInput)]++;
-			cribber->unusedPtsThisGame[CRIB] += stoi(userInput);
-			cribber->unusedPtsToday[CRIB] += stoi(userInput);
-			cribber->unusedPtsAT[CRIB] += stoi(userInput);
+			cribber->cribPtsThisGame += mystoi(userInput);
+			cribber->histoCribPtsToday[mystoi(userInput)]++;
+			cribber->histoCribPtsAT[mystoi(userInput)]++;
+			cribber->unusedPtsThisGame[CRIB] += mystoi(userInput);
+			cribber->unusedPtsToday[CRIB] += mystoi(userInput);
+			cribber->unusedPtsAT[CRIB] += mystoi(userInput);
 
 			return nonCribber;
 		}
@@ -718,12 +723,12 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		printCentered(1, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3);
 		cout << "How many points were needed?  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		nonCribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - stoi(userInput) );
+		nonCribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
 		nonCribber->unusedPtsToday[HAND] += nonCribber->unusedPtsThisGame[HAND];
 		nonCribber->unusedPtsAT[HAND] += nonCribber->unusedPtsThisGame[HAND];
 
 		// calc winner's pegged points for this game
-		nonCribber->peggedPtsThisGame = 121 - stoi(userInput)
+		nonCribber->peggedPtsThisGame = 121 - mystoi(userInput)
 											- nonCribber->handPtsThisGame 
 											- nonCribber->cribPtsThisGame 
 											- (nonCribber->numNibsThisGame * 2);							 
@@ -733,14 +738,14 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		// record loser's position
 		cout << " " << cribber->indtAdjstdName << "'s pos:  ";  // cribber lost
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		cribber->losingPositionToday += stoi(userInput);
+		cribber->losingPositionToday += mystoi(userInput);
 
 		// use that to calc the winner's winning margin
-		nonCribber->winMarginsToday.push_back(121 - stoi(userInput));
-		nonCribber->histoWinMarginsAT[121 - stoi(userInput)]++;
+		nonCribber->winMarginsToday.push_back(121 - mystoi(userInput));
+		nonCribber->histoWinMarginsAT[121 - mystoi(userInput)]++;
 
 		// and now calc loser's pegged points for this game
-		cribber->peggedPtsThisGame = stoi(userInput)
+		cribber->peggedPtsThisGame = mystoi(userInput)
 										- cribber->handPtsThisGame 
 										- cribber->cribPtsThisGame 
 										- (cribber->numNibsThisGame * 2);								 
@@ -755,22 +760,22 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		cout << cribber->indtAdjstdName << "'s hand:  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 		handleInputFlags(userInput, cribber);
-		cribber->handPtsThisGame += stoi(userInput);
-		cribber->histoHandPtsToday[stoi(userInput)]++;
-		cribber->histoHandPtsAT[stoi(userInput)]++;
-		cribber->unusedPtsThisGame[HAND] += stoi(userInput);
-		cribber->unusedPtsToday[HAND] += stoi(userInput);
-		cribber->unusedPtsAT[HAND] += stoi(userInput);
+		cribber->handPtsThisGame += mystoi(userInput);
+		cribber->histoHandPtsToday[mystoi(userInput)]++;
+		cribber->histoHandPtsAT[mystoi(userInput)]++;
+		cribber->unusedPtsThisGame[HAND] += mystoi(userInput);
+		cribber->unusedPtsToday[HAND] += mystoi(userInput);
+		cribber->unusedPtsAT[HAND] += mystoi(userInput);
 		
 		cout << cribber->indtAdjstdName << "'s crib:  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 		handleInputFlags(userInput, cribber);
-		cribber->cribPtsThisGame += stoi(userInput);
-		cribber->histoCribPtsToday[stoi(userInput)]++;
-		cribber->histoCribPtsAT[stoi(userInput)]++;
-		cribber->unusedPtsThisGame[CRIB] += stoi(userInput);
-		cribber->unusedPtsToday[CRIB] += stoi(userInput);
-		cribber->unusedPtsAT[CRIB] += stoi(userInput);
+		cribber->cribPtsThisGame += mystoi(userInput);
+		cribber->histoCribPtsToday[mystoi(userInput)]++;
+		cribber->histoCribPtsAT[mystoi(userInput)]++;
+		cribber->unusedPtsThisGame[CRIB] += mystoi(userInput);
+		cribber->unusedPtsToday[CRIB] += mystoi(userInput);
+		cribber->unusedPtsAT[CRIB] += mystoi(userInput);
 
 		return nonCribber;
 	}
@@ -780,12 +785,12 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
 		cout << "How many points were needed?  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		cribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - stoi(userInput) );
+		cribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
 		cribber->unusedPtsToday[HAND] += cribber->unusedPtsThisGame[HAND];
 		cribber->unusedPtsAT[HAND] += cribber->unusedPtsThisGame[HAND];
 
 		// calc winner's pegged points for this game
-		cribber->peggedPtsThisGame = 121 - stoi(userInput)
+		cribber->peggedPtsThisGame = 121 - mystoi(userInput)
 									     - cribber->handPtsThisGame 
 										 - cribber->cribPtsThisGame 
 										 - (cribber->numNibsThisGame * 2);							 
@@ -795,14 +800,14 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		// record loser's position
 		cout << " " << nonCribber->indtAdjstdName << "'s pos:  ";  // nonCribber lost
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		nonCribber->losingPositionToday += stoi(userInput);
+		nonCribber->losingPositionToday += mystoi(userInput);
 
 		// use that to calc the winner's winning margin
-		cribber->winMarginsToday.push_back(121 - stoi(userInput));
-		cribber->histoWinMarginsAT[121 - stoi(userInput)]++;
+		cribber->winMarginsToday.push_back(121 - mystoi(userInput));
+		cribber->histoWinMarginsAT[121 - mystoi(userInput)]++;
 
 		// and now calc loser's pegged points for this game
-		nonCribber->peggedPtsThisGame = stoi(userInput)
+		nonCribber->peggedPtsThisGame = mystoi(userInput)
 										  - nonCribber->handPtsThisGame 
 										  - nonCribber->cribPtsThisGame 
 										  - (nonCribber->numNibsThisGame * 2);								 
@@ -817,12 +822,12 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		cout << cribber->indtAdjstdName << "'s crib:  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
 		handleInputFlags(userInput, cribber);
-		cribber->cribPtsThisGame += stoi(userInput);
-		cribber->histoCribPtsToday[stoi(userInput)]++;
-		cribber->histoCribPtsAT[stoi(userInput)]++;
-		cribber->unusedPtsThisGame[CRIB] += stoi(userInput);
-		cribber->unusedPtsToday[CRIB] += stoi(userInput);
-		cribber->unusedPtsAT[CRIB] += stoi(userInput);
+		cribber->cribPtsThisGame += mystoi(userInput);
+		cribber->histoCribPtsToday[mystoi(userInput)]++;
+		cribber->histoCribPtsAT[mystoi(userInput)]++;
+		cribber->unusedPtsThisGame[CRIB] += mystoi(userInput);
+		cribber->unusedPtsToday[CRIB] += mystoi(userInput);
+		cribber->unusedPtsAT[CRIB] += mystoi(userInput);
 
 		return cribber;
 	}
@@ -832,12 +837,12 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
 		cout << "How many points were needed?  ";
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		cribber->unusedPtsThisGame[CRIB] += (ptsInWinningInput - stoi(userInput) );
+		cribber->unusedPtsThisGame[CRIB] += (ptsInWinningInput - mystoi(userInput) );
 		cribber->unusedPtsToday[CRIB] += cribber->unusedPtsThisGame[CRIB];
 		cribber->unusedPtsAT[CRIB] += cribber->unusedPtsThisGame[CRIB];
 
 		// calc winner's pegged points for this game
-		cribber->peggedPtsThisGame = 121 - stoi(userInput)
+		cribber->peggedPtsThisGame = 121 - mystoi(userInput)
 									     - cribber->handPtsThisGame 
 										 - cribber->cribPtsThisGame 
 										 - (cribber->numNibsThisGame * 2);							 
@@ -847,14 +852,14 @@ Player* winHandler(string winCondition, Player* cribber, Player* nonCribber, int
 		// record loser's position
 		cout << " " << nonCribber->indtAdjstdName << "'s pos:  ";  // nonCribber lost
 		userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
-		nonCribber->losingPositionToday += stoi(userInput);
+		nonCribber->losingPositionToday += mystoi(userInput);
 
 		// use that to calc the winner's winning margin
-		cribber->winMarginsToday.push_back(121 - stoi(userInput));
-		cribber->histoWinMarginsAT[121 - stoi(userInput)]++;  // check the indexing on this... hmmm.
+		cribber->winMarginsToday.push_back(121 - mystoi(userInput));
+		cribber->histoWinMarginsAT[121 - mystoi(userInput)]++;  // check the indexing on this... hmmm.
 
 		// and now calc loser's pegged points for this game
-		nonCribber->peggedPtsThisGame = stoi(userInput)
+		nonCribber->peggedPtsThisGame = mystoi(userInput)
 										  - nonCribber->handPtsThisGame 
 										  - nonCribber->cribPtsThisGame 
 										  - (nonCribber->numNibsThisGame * 2);								 
@@ -1054,35 +1059,47 @@ void printEndOfSessionStuff(vector<Player*> players) {
 	printCentered(3, "--  --  --  --  --  --  --  --  --  --  --  --  --  --", 3);
 
 	// print win vs win results today
-	cout << "Today's champion: ";
-	if (players[0]->winsToday >= players[1]->winsToday)
-		cout << ((players[0]->winsToday == players[1]->winsToday) ? "It's a tie" : players[0]->name) << "!\n\n"
-			 << players[0]->winsToday << " wins for " << players[0]->name << "  vs  "
-		     << players[1]->winsToday << " wins for " << players[1]->name << "\n\n\n";
-	else	
-		cout << players[1]->name << "!\n\n"
-			 << players[1]->winsToday << " wins for " << players[1]->name << "  vs  "
-		     << players[0]->winsToday << " wins for " << players[0]->name << "\n\n\n";
+	if (players[0]->winsToday >= players[1]->winsToday) {
+		printCentered(1, "Today's champion: " + 
+			((players[0]->winsToday == players[1]->winsToday) ? "It's a tie" : players[0]->name) + "!", 2);
+		printCentered(0, to_string(players[0]->winsToday) + " wins for " + players[0]->name + "  vs  " +
+		     to_string(players[1]->winsToday) + " wins for " + players[1]->name, 4);
+	} else {
+		printCentered(1, "Today's champion: " + players[1]->name + "!", 2);
+		printCentered(0, to_string(players[1]->winsToday) + " wins for " + players[1]->name + "  vs  " +
+		     to_string(players[0]->winsToday) + " wins for " + players[0]->name, 4);
+	}
 
 	// print macrogame results today
-	cout << "Today's MACRO-game:   ";
+	printCentered(0, "Today's MACRO-game:", 2);
 	if (players[0]->macrogamePtsToday >= players[1]->macrogamePtsToday)
-		cout << players[0]->name << " had " << players[0]->macrogamePtsToday << " pts  vs  "
-		     << players[1]->macrogamePtsToday << " pts for " << players[1]->name << "\n\n\n";
+		printCentered(0, players[0]->name + " had " + to_string(players[0]->macrogamePtsToday) + " pts  vs  " +
+		     to_string(players[1]->macrogamePtsToday) + " pts for " + players[1]->name, 4);
 	else
-		cout << players[1]->name << " had " << players[1]->macrogamePtsToday << " pts  vs  "
-		     << players[0]->macrogamePtsToday << " pts for " << players[0]->name << "\n\n\n";
+		printCentered(0, players[1]->name + " had " + to_string(players[1]->macrogamePtsToday) + " pts  vs  " +
+		     to_string(players[0]->macrogamePtsToday) + " pts for " + players[0]->name, 4);
 
 	// print number of first crib wins
-	cout << players[0]->name << " won " << players[0]->numFirstCribsWonToday
-		 << " of their " << players[0]->numFirstCribsToday << " games today where they had first crib.\n";
-	cout << players[1]->name << " won " << players[1]->numFirstCribsWonToday
-		 << " of their " << players[1]->numFirstCribsToday << " games today where they had first crib.\n\n";
+	printCentered(0, "Today", 2);
+	printCentered(0, players[0]->name + " won " + to_string(players[0]->numFirstCribsWonToday) +
+		" of their " + to_string(players[0]->numFirstCribsToday) + " games where they had first crib.", 1);
+	printCentered(0, players[1]->name + " won " + to_string(players[1]->numFirstCribsWonToday) +
+		" of their " + to_string(players[1]->numFirstCribsToday) + " games where they had first crib.", 3);
 
-	cout << players[0]->name << " has won " << players[0]->numFirstCribsWonAT
-		 << " of their " << players[0]->numFirstCribsAT << " games where they had first crib all-time.\n";
-	cout << players[1]->name << " has won " << players[1]->numFirstCribsWonAT
-		 << " of their " << players[1]->numFirstCribsAT << " games where they had first crib all-time.\n\n\n";
+	printCentered(0, "All-time", 2);
+	printCentered(0, players[0]->name + " has won " + to_string(players[0]->numFirstCribsWonAT) +
+		" of their " + to_string(players[0]->numFirstCribsAT) + " games where they had first crib.", 1);
+	printCentered(0, players[1]->name + " has won " + to_string(players[1]->numFirstCribsWonAT) +
+		" of their " + to_string(players[1]->numFirstCribsAT) + " games where they had first crib all-time.", 4);
+
+	// print macrogame results AT
+	printCentered(0, "All-time MACRO-game (since Jan 19):", 2);
+	if (players[0]->macrogamePtsAT >= players[1]->macrogamePtsAT)
+		printCentered(0, players[0]->name + ": " + to_string(players[0]->macrogamePtsAT) + " pts  vs  " +
+		    to_string(players[1]->macrogamePtsAT) + " pts for " + players[1]->name, 4);
+	else
+		printCentered(0, players[1]->name + ": " + to_string(players[1]->macrogamePtsAT) + " pts  vs  " +
+		    to_string(players[0]->macrogamePtsAT) + " pts for " + players[0]->name, 4);
 
 	// print AT win vs win
 	int allTimeWinsP0 = players[0]->winsAT;
@@ -1091,30 +1108,25 @@ void printEndOfSessionStuff(vector<Player*> players) {
 		allTimeWinsP0 += players[0]->legacyWins;
 		allTimeWinsP1 += players[1]->legacyWins;
 	}
-	cout << "All-time wins" << (useLegacyData ? " (since Jan 1 2022): " : ": ");
+	string optionalLegacyLabel = (useLegacyData ? " (since Jan 1 2022): " : ": ");
+	printCentered(0, "All-time wins" + optionalLegacyLabel, 2);
 	if (allTimeWinsP0 >= allTimeWinsP1)
-		cout << players[0]->name << ": " << allTimeWinsP0 << " wins  -  "
-		     << players[1]->name << ": " << allTimeWinsP1 << " wins\n\n\n";
+		printCentered(0, players[0]->name + " has " + to_string(allTimeWinsP0) + " wins  vs  " +
+		    to_string(allTimeWinsP1) + " wins for " + players[1]->name, 4);
 	else	
-		cout << players[1]->name << ": " << allTimeWinsP1 << " wins  -  "
-		     << players[0]->name << ": " << allTimeWinsP0 << " wins\n\n\n";
-
-	// print macrogame results AT
-	cout << "All-time MACRO-game (since Jan 19):   ";
-	if (players[0]->macrogamePtsAT >= players[1]->macrogamePtsAT)
-		cout << players[0]->name << ": " << players[0]->macrogamePtsAT << " pts  -  "
-		     << players[1]->name << ": " << players[1]->macrogamePtsAT << " pts\n\n\n";
-	else
-		cout << players[1]->name << ": " << players[1]->macrogamePtsAT << " pts  -  "
-		     << players[0]->name << ": " << players[0]->macrogamePtsAT << " pts\n\n\n";
+		printCentered(0, players[1]->name + " has " + to_string(allTimeWinsP1) + " wins  vs  " +
+		    to_string(allTimeWinsP0) + " wins for " + players[0]->name, 4);
 
 	// print crib averages
-	cout << "Today's crib avg: " << combinedCribAverage(players, "today")
-	     << " pts  (vs " << combinedCribAverage(players, "all-time")
-		 << " pts all-time [" 
-		 << (useLegacyData ? players[0]->numHandsAT + players[0]->legacyNumHands :
-		 					 players[0]->numHandsAT) 
-		 << " hands])\n\n\n";
+	string todayCribAvg = to_string(combinedCribAverage(players, "today"));
+	todayCribAvg = todayCribAvg.substr(0, todayCribAvg.size() - 4);  // we get 6 decimal pts by default; cut off 4 of them
+	string alltimeCribAvg = to_string(combinedCribAverage(players, "all-time"));
+	alltimeCribAvg = alltimeCribAvg.substr(0, alltimeCribAvg.size() - 4);
+	printCentered(0, "Today's crib avg:  " + todayCribAvg + " pts  (" + 
+		to_string(players[0]->numHandsToday) + " hands)", 2); 
+	printCentered(0, "All-time crib avg:  " + alltimeCribAvg + " pts  (" +
+		(useLegacyData ? to_string(players[0]->numHandsAT + players[0]->legacyNumHands) :
+		 				 to_string(players[0]->numHandsAT)) + " hands)", 4);
 }
 
 
@@ -1770,4 +1782,28 @@ bool userWantsToCorrect1stCribDraw(vector<Player*> players) {
 	userWantsToCorrect1stCribCut = true;
 	undoLastDrawForWhoGets1stCrib(players);
 	return true;
+}
+
+
+int mystoi(string st)  {
+// an error-catching version of stoi(), used to catch cases where user enters letters
+// ...before the number, so that the program doesn't crash. Forces the user to
+// ...re-enter the input in those cases.
+	int intVersion;
+	try {
+	   intVersion = stoi(st);
+	} catch(invalid_argument) {  // can also use catch(...) to catch ALL exception types
+		if (st == previousInvalidInput)
+			return previousInvalidInputFix;
+
+		previousInvalidInput = st;
+		printCentered(1, "Error: invalid input '" + st + "' detected", 2);
+	  	cout << "What did you mean?  ";
+	  	string input;
+	  	getline(cin, input);
+	  	intVersion = mystoi(input);
+	}
+
+	previousInvalidInputFix = intVersion;
+	return intVersion;
 }
