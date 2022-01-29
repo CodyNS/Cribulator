@@ -2,7 +2,10 @@
 .vscode
 .DS_Store
 
+*.txt
+
 a.out
 cribulator_player_save_data.txt
 end\ of\ game\ stats\ design.txt
 output\ format\ scribble.txt
+test_save_data_output.txt
