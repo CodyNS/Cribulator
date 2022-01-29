@@ -144,7 +144,12 @@ struct Player {
 
 
 // CONSTANTS
+bool USE_LEGACY_DATA = true;  // flag that enables/disables the use of legacy crib data
+							  // aka data from Jan 1 -> 17 before this program was complete
+							  // and all data was able to be collected.
 const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";
+const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
+const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
 const string VAR_PREFIX = "### ";
 const int HAND = 0; // these 4 used for excess point variable indeces
 const int CRIB = 1;
@@ -156,7 +161,7 @@ const bool CRIBBER_WINS = true;
 const bool NON_CRIBBER_WINS = true;
 const bool SOMEONE_HAS_WON = true;
 const string INDENTATION = "\t\t\t";  // BLAH why aren't the following ones capitalized?
-const vector<string> CORRECTION_VARIATIONS = {"fix", "correct", "undo", "redo", "c"};
+const vector<string> CORRECTION_VARIATIONS = {"fix", "correct", "undo", "redo", "mistake", "oops", "woops"};
 const vector<string> HISTO_VARIATIONS = {"histo", "hist", "histogram"};
 const vector<string> WIN_VARIATIONS = {"w", "win"};
 const vector<string> NOBS_VARIATIONS = {"n", "nobs", "knobs"};
@@ -168,9 +173,7 @@ const vector<string> NUMBERS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 
 
 // GLOBAL VARIABLES
-bool useLegacyData = true;  // flag that enables/disables the use of legacy crib data
-							// aka data from Jan 1 -> 17 before this program was complete
-							// and all data was able to be collected.
+bool usingBlankSaveData = false;  // flips to true if blank save data file is found
 bool userWantsToCorrectRound = false;  	   // flag used to trigger the correction mechanism
 bool userWantsToCorrect1stCribCut = false;
 //bool backupWasJustRestored = false;  	   // another flag part of the correction mechanism
@@ -203,7 +206,10 @@ void performEndOfSessionTasks(vector<Player*>);
 int cardIndexOf(string);
 string cardStringForIndex(int);
 int pointValueOf(string);
-void printHistogram(string, Player&, Player&);
+void printHistogram(string, Player*, Player*);
+string multString(int, string);
+float computeMeanFromHistos(vector<vector<int>>);
+int highestTotalAchievedInHistos(vector<vector<int>>);
 bool search(string, string);
 bool search(string, vector<string>);
 Player* determineLoser(vector<Player*>, Player*);
@@ -216,7 +222,7 @@ void restoreBackupOfVariables(vector<Player*>, vector<Player*>, Player* &, Playe
 void undoLastDrawForWhoGets1stCrib(vector<Player*>);
 bool userWantsToCorrect1stCribDraw(vector<Player*>);
 int mystoi(string);
-
+bool handleStatsRequests(string, vector<Player*>);
 
 
 
@@ -259,19 +265,23 @@ int main() {
 				if (winner != NULL)  break;  // we have a winner
 			}
 			if (userWantsToCorrectRound) {
-				if (userWantsToCorrect1stCribDraw(players))  
+				if (userWantsToCorrect1stCribDraw(players)) {
+					cribber->numFirstCribsToday--;
+					cribber->numFirstCribsAT--;
 					break;
+				}
 				restoreBackupOfVariables(players, playerBackups, cribber, cribberBackup, nonCribber, nonCribberBackup);
 				continue;
 			}
 
 			backupVariables(players, playerBackups, cribber, cribberBackup, nonCribber, nonCribberBackup);
-			userWantsToCorrect1stCribCut = false;
 			//backupWasJustRestored = false;  <-- was using this to be efficient, but it was getting tricky so fck it
 			incrementHandCounters(cribber, nonCribber);
 
-			cout << nonCribber->indtAdjstdName << "'s hand:  ";
-			userInput = getlineMine();
+			do {
+				cout << nonCribber->indtAdjstdName << "'s hand:  ";
+				userInput = getlineMine();
+			} while(handleStatsRequests(userInput, players) );
 			if (handleInputFlags(userInput, nonCribber) == SOMEONE_HAS_WON) {
 				if (!search(userInput, NUMBERS))
 					winner = winHandler("someone won via pegging", cribber, nonCribber, 0);
@@ -288,8 +298,10 @@ int main() {
 			nonCribber->histoHandPtsToday[ptValue]++;
 			nonCribber->handPtsThisGame += ptValue;
 
-			cout << cribber->indtAdjstdName << "'s hand:  ";
-			userInput = getlineMine();
+			do {
+				cout << cribber->indtAdjstdName << "'s hand:  ";
+				userInput = getlineMine();
+			} while(handleStatsRequests(userInput, players) );
 			if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
 				winner = winHandler("cribber wins via hand", cribber, nonCribber, pointValueOf(userInput));
 				if (winner != NULL)  break;
@@ -303,8 +315,10 @@ int main() {
 			cribber->histoHandPtsToday[ptValue]++;
 			cribber->handPtsThisGame += ptValue;
 	
-			cout << cribber->indtAdjstdName << "'s crib:  ";
-			userInput = getlineMine();
+			do {
+				cout << cribber->indtAdjstdName << "'s crib:  ";
+				userInput = getlineMine();
+			} while(handleStatsRequests(userInput, players) );
 			if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
 				winner = winHandler("cribber wins via crib", cribber, nonCribber, pointValueOf(userInput));
 				if (winner != NULL)  break;
@@ -370,18 +384,24 @@ bool cutToSeeWhoGetsFirstCrib(Player* molly, Player* johnny, Player*& cribber, P
 	int mollyCardIndex;
 	int johnnyCardIndex;
 
-	cout << " Molly draws a  ";
-	mollyCut = getlineMine();
+	do {
+		cout << " Molly draws a  ";
+		mollyCut = getlineMine();
+	} while(handleStatsRequests(mollyCut, {molly, johnny}) );
 	if (userWantsToEndSession(mollyCut))
 		return false;  // quit for today
-	if (search(mollyCut, CORRECTION_VARIATIONS))  // we want to go back and correct last hand of previous game
-		return true;
+	if (userWantsToCorrectRound) 
+		return true;  // will have been flipped in getlineMine() via the user's input if true
 	mollyCardIndex = cardIndexOf(mollyCut);
 
-	cout << "Johnny draws a  ";
-	johnnyCut = getlineMine();
-	if (search(johnnyCut, CORRECTION_VARIATIONS)) {
-		userWantsToCorrectRound = false;
+	do {
+		cout << "Johnny draws a  ";
+		johnnyCut = getlineMine();
+	} while(handleStatsRequests(johnnyCut, {molly, johnny}) );
+	if (userWantsToEndSession(johnnyCut))
+		return false;  // quit for today
+	if (userWantsToCorrectRound) {
+		userWantsToCorrectRound = false;  // if correction input is entered here, assume user just wants to correct the cut input
 		return cutToSeeWhoGetsFirstCrib(molly, johnny, cribber, nonCribber); // just start again if user wants to correct at this step
 	}
 	johnnyCardIndex = cardIndexOf(johnnyCut);
@@ -443,11 +463,18 @@ bool cutTheStarterCard(Player* cribber, Player* nonCribber) {
 // BLAH: refactor the if statement by using a to_upper() function (make one)
 	string theCut;  // aka the "starter card" that is cut
 	int cutCardIndex;
+	vector <Player*> players;  // need to make it {*molly, *johnny}. Used for handleStatsRequests().
+	if (cribber->name == "Molly")
+		  players = {cribber, nonCribber};
+	else  players = {nonCribber, cribber};
 
-	cout << "         the cut:  ";
-	theCut = getlineMine();
-	if (search(theCut, CORRECTION_VARIATIONS))
+	do {
+		cout << "         the cut:  ";
+		theCut = getlineMine();
+	} while(handleStatsRequests(theCut, players) );
+	if (userWantsToCorrectRound)
 		return false;
+
 	cutCardIndex = cardIndexOf(theCut);
 	cribber->histoCutsForMyCribToday[cutCardIndex]++;
 	cribber->histoCutsForMyCribAT[cutCardIndex]++;
@@ -465,16 +492,11 @@ bool cutTheStarterCard(Player* cribber, Player* nonCribber) {
 bool handleInputFlags(string userInput, Player* player) {
 // returns true if the flags indicate a win; false otherwise
 // Be careful about the order you check these, especially the ones with single letter variations...
-	if (search(userInput, NOBS_VARIATIONS) ){
-		player->nobsToday++;
-		player->nobsAT++;
-	}
+
 	if (search(userInput, FOK_VARIATIONS) ){
 		player->FOKsToday++;
 		player->FOKsAT++;
-	}
-
-	if (search(userInput, SUPER_FLUSH_VARIATIONS) ){
+	} else if (search(userInput, SUPER_FLUSH_VARIATIONS) ){
 		player->superFlushesToday++;
 		player->superFlushesAT++;
 	} else if (search(userInput, FLUSH_VARIATIONS) && !search(userInput, FOK_VARIATIONS) ){ // don't let 'fok' also count as a flush
@@ -482,16 +504,15 @@ bool handleInputFlags(string userInput, Player* player) {
 		player->flushesAT++;
 	}
 
+	if (search(userInput, NOBS_VARIATIONS) ){
+		player->nobsToday++;
+		player->nobsAT++;
+	}
+
 	if (search(userInput, WIN_VARIATIONS) )
 		return true;  // someone has won
 
-	// histo or other stats
-	// ... BLAH TODO
-
-
-
-
-	return false;
+	return false; // no win indicated
 }
 
 
@@ -900,8 +921,8 @@ void printEndOfHandStuff(vector<Player*> players) {
 
 		 << combinedCribAverage(players, "today") << " today (" << players[0]->numHandsToday << ")     "
 		 << combinedCribAverage(players, "all-time") << " ever (" 
-		 << (useLegacyData ? players[0]->numHandsAT + players[0]->legacyNumHands : 
-		 					 players[0]->numHandsAT) << ")";
+		 << (USE_LEGACY_DATA ? players[0]->numHandsAT + players[0]->legacyNumHands : 
+		 					   players[0]->numHandsAT) << ")";
 }
 
 
@@ -1021,19 +1042,17 @@ void resetThisGameDataForPlayers(vector<Player*> players) {
 
 float combinedCribAverage(vector<Player*> players, string timeframe) {
 	if (timeframe == "today")
-		return ((sumOfHistogram(players[0]->histoCribPtsToday) + sumOfHistogram(players[1]->histoCribPtsToday)) * 1.0) / 
-			(players[0]->numHandsToday * 1.0);
+		return computeMeanFromHistos({players[0]->histoCribPtsToday, players[1]->histoCribPtsToday});
 
-	else if (timeframe == "all-time" && useLegacyData)
+	else if (timeframe == "all-time" && USE_LEGACY_DATA)
 		return ( (sumOfHistogram(players[0]->histoCribPtsAT) 
 			      + sumOfHistogram(players[1]->histoCribPtsAT)
 				  + players[0]->legacyCribSum ) * 1.0) 
 				/ 
 				  ((players[0]->numHandsAT + players[0]->legacyNumHands) * 1.0);
 
-	else if (timeframe == "all-time" && !useLegacyData)
-		return ((sumOfHistogram(players[0]->histoCribPtsAT) + sumOfHistogram(players[1]->histoCribPtsAT)) * 1.0) / 
-			(players[0]->numHandsAT * 1.0);
+	else if (timeframe == "all-time" && !USE_LEGACY_DATA)
+		return computeMeanFromHistos({players[0]->histoCribPtsAT, players[1]->histoCribPtsAT});
 
 	else {
 		cout << "\n\n\n*** Error: invalid timeframe specified for 'combinedCribAverage()' call ***\n";
@@ -1041,6 +1060,28 @@ float combinedCribAverage(vector<Player*> players, string timeframe) {
 		exit(1);
 	}
 }
+// float combinedCribAverage(vector<Player*> players, string timeframe) {
+// 	if (timeframe == "today")
+// 		return ((sumOfHistogram(players[0]->histoCribPtsToday) + sumOfHistogram(players[1]->histoCribPtsToday)) * 1.0) / 
+// 			(players[0]->numHandsToday * 1.0);
+
+// 	else if (timeframe == "all-time" && USE_LEGACY_DATA)
+// 		return ( (sumOfHistogram(players[0]->histoCribPtsAT) 
+// 			      + sumOfHistogram(players[1]->histoCribPtsAT)
+// 				  + players[0]->legacyCribSum ) * 1.0) 
+// 				/ 
+// 				  ((players[0]->numHandsAT + players[0]->legacyNumHands) * 1.0);
+
+// 	else if (timeframe == "all-time" && !USE_LEGACY_DATA)
+// 		return ((sumOfHistogram(players[0]->histoCribPtsAT) + sumOfHistogram(players[1]->histoCribPtsAT)) * 1.0) / 
+// 			(players[0]->numHandsAT * 1.0);
+
+// 	else {
+// 		cout << "\n\n\n*** Error: invalid timeframe specified for 'combinedCribAverage()' call ***\n";
+// 		cout << "program closing...\n\n\n";
+// 		exit(1);
+// 	}
+// }
 
 
 void performEndOfSessionTasks(vector<Player*> players) {
@@ -1104,11 +1145,11 @@ void printEndOfSessionStuff(vector<Player*> players) {
 	// print AT win vs win
 	int allTimeWinsP0 = players[0]->winsAT;
 	int allTimeWinsP1 = players[1]->winsAT;
-	if (useLegacyData) {
+	if (USE_LEGACY_DATA) {
 		allTimeWinsP0 += players[0]->legacyWins;
 		allTimeWinsP1 += players[1]->legacyWins;
 	}
-	string optionalLegacyLabel = (useLegacyData ? " (since Jan 1 2022): " : ": ");
+	string optionalLegacyLabel = (USE_LEGACY_DATA ? " (since Jan 1 2022): " : ": ");
 	printCentered(0, "All-time wins" + optionalLegacyLabel, 2);
 	if (allTimeWinsP0 >= allTimeWinsP1)
 		printCentered(0, players[0]->name + " has " + to_string(allTimeWinsP0) + " wins  vs  " +
@@ -1125,7 +1166,7 @@ void printEndOfSessionStuff(vector<Player*> players) {
 	printCentered(0, "Today's crib avg:  " + todayCribAvg + " pts  (" + 
 		to_string(players[0]->numHandsToday) + " hands)", 2); 
 	printCentered(0, "All-time crib avg:  " + alltimeCribAvg + " pts  (" +
-		(useLegacyData ? to_string(players[0]->numHandsAT + players[0]->legacyNumHands) :
+		(USE_LEGACY_DATA ? to_string(players[0]->numHandsAT + players[0]->legacyNumHands) :
 		 				 to_string(players[0]->numHandsAT)) + " hands)", 4);
 }
 
@@ -1223,70 +1264,164 @@ int pointValueOf(string userInput) {
 }
 
 
-void printHistogram(string input, Player& molly, Player& johnny) {
-	string histoType;
-	vector<string> mollyVariations = {"molly", "Molly", "m", "M"};
+void printHistogram(string input, Player* molly, Player* johnny) {
+// BLAH REFACTOR this: there's tons of repetition here. Could just declare a struct in 
+// here and then pass a pointer to an instance of that in to a helper function that
+// calculates all that stuff in each case.
+// ALSO: I couldn't figure out how to do this properly:
+// can I just make "histo" a pointer to the vector<int> of interest instead of making a
+// local copy of it? I'd like to, but can't figure out the syntax when it comes time to 
+// using it to print stuff out from it...
+// ...It would also be wise to do that when sending it into all the helper functions
+// in here.
+	vector<string> mollyVariations = {"molly", "Molly", "M", "mo"};
 	vector<string> johnnyVariations = {"johnny", "Johnny", "j", "J"};
+	// vector<string> cribVariations = {"crib", "c"};  <-- don't think it's needed...
+	vector<string> handVariations = {"hand", "hands"};
 	vector<string> todayVariations = {"today", "td", "tod", "Today", "TD", "Tod"};
 	vector<string> alltimeVariations = {"at", "AT", "All-Time", "all-time", "alltime", 
 								        "All-time", "Alltime", "All Time", "all time"};
+	vector<string> thickVariations = {"th", "thick", "wide"};
+	vector<string> amountsVariations = {"am", "nu", "#", "tot"};
+	vector<int> histo;
+	string combinedHistoType = "";
+	float histoMean = 0;
+	int highest = 0;  // highest point total achieved in the histogram(s) of interest
+	bool useThickBars = search(input, thickVariations);
+	bool showAmounts = search(input, amountsVariations);
 
-	cout << "\n\n";	
+	cout << "\n\n\n";	
 	if (search(input, mollyVariations) ) {
-		if (search(input, todayVariations) ) {
-			histoType = "molly-today";
-			cout << "Molly's cribs today:";
-		}	
-		else  {
-			histoType = "molly-alltime";
-			cout << "Molly's cribs (all-time):";
+		if (search(input, handVariations) ){
+			if (search(input, todayVariations) ) {
+				histo = molly->histoHandPtsToday;
+				histoMean = computeMeanFromHistos({molly->histoHandPtsToday});
+				highest = highestTotalAchievedInHistos({molly->histoHandPtsToday});
+				printCentered(0, "- - - - - - -  Molly's hands today  - - - - - - -", 0);
+			} else {
+				histo = molly->histoHandPtsAT;
+				histoMean = computeMeanFromHistos({molly->histoHandPtsAT});
+				highest = highestTotalAchievedInHistos({molly->histoHandPtsAT});
+				printCentered(0, "- - - - - - -  Molly's hands (all-time)  - - - - - - -", 0);
+			}
+		} else { // default is crib histo
+			if (search(input, todayVariations) ) {
+				histo = molly->histoCribPtsToday;
+				histoMean = computeMeanFromHistos({molly->histoCribPtsToday});
+				highest = highestTotalAchievedInHistos({molly->histoCribPtsToday});
+				printCentered(0, "- - - - - - -  Molly's cribs today  - - - - - - -", 0);
+			} else {
+				histo = molly->histoCribPtsAT;
+				histoMean = computeMeanFromHistos({molly->histoCribPtsAT});
+				highest = highestTotalAchievedInHistos({molly->histoCribPtsAT});
+				printCentered(0, "- - - - - - -  Molly's cribs (all-time)  - - - - - - -", 0);
+			}
 		}
 	}
 	else if (search(input, johnnyVariations) ) {
-		if (search(input, todayVariations) ) {
-			histoType = "johnny-today";
-			cout << "Johnny's cribs today:";
-		}
-		else {
-			histoType = "johnny-alltime";
-			cout << "Johnny's cribs (all-time):";
+		if (search(input, handVariations) ){
+			if (search(input, todayVariations) ) {
+				histo = johnny->histoHandPtsToday;
+				histoMean = computeMeanFromHistos({johnny->histoHandPtsToday});
+				highest = highestTotalAchievedInHistos({johnny->histoHandPtsToday});
+				printCentered(0, "- - - - - - -  Johnny's hands today  - - - - - - -", 0);
+			} else {
+				histo = johnny->histoHandPtsAT;
+				histoMean = computeMeanFromHistos({johnny->histoHandPtsAT});
+				highest = highestTotalAchievedInHistos({johnny->histoHandPtsAT});
+				printCentered(0, "- - - - - - -  Johnny's hands (all-time)  - - - - - - -", 0);
+			}
+		} else { // default is crib histo
+			if (search(input, todayVariations) ) {
+				histo = johnny->histoCribPtsToday;
+				histoMean = computeMeanFromHistos({johnny->histoCribPtsToday});
+				highest = highestTotalAchievedInHistos({johnny->histoCribPtsToday});
+				printCentered(0, "- - - - - - -  Johnny's cribs today  - - - - - - -", 0);
+			} else {
+				histo = johnny->histoCribPtsAT;
+				histoMean = computeMeanFromHistos({johnny->histoCribPtsAT});
+				highest = highestTotalAchievedInHistos({johnny->histoCribPtsAT});
+				printCentered(0, "- - - - - - -  Johnny's cribs (all-time)  - - - - - - -", 0);
+			}
 		}
 	}
-	else {
-		if (search(input, todayVariations) ) {
-			histoType = "combined-today";
-			cout << "Today's cribs:";
-		}
-		else {
-			histoType = "combined-alltime";
-			cout << "Crib breakdown (all-time):";
+	else {  // combined (both players)
+		if (search(input, handVariations) ){
+			if (search(input, todayVariations) ) {
+				combinedHistoType = "Today-hand";
+				histoMean = computeMeanFromHistos({molly->histoHandPtsToday, johnny->histoHandPtsToday});
+				highest = highestTotalAchievedInHistos({molly->histoHandPtsToday, johnny->histoHandPtsToday});
+				printCentered(0, "- - - - - - -  (Combined) today's hands  - - - - - - -", 0);
+			} else {
+				combinedHistoType = "All-time-hand";
+				histoMean = computeMeanFromHistos({molly->histoHandPtsAT, johnny->histoHandPtsAT});
+				highest = highestTotalAchievedInHistos({molly->histoHandPtsAT, johnny->histoHandPtsAT});
+				printCentered(0, "- - - - - - -  (Combined) hands breakdown (all-time)  - - - - - - -", 0);
+			}
+		} else {  // crib histos (combined)
+			if (search(input, todayVariations) ){
+				combinedHistoType = "Today-crib";
+				histoMean = computeMeanFromHistos({molly->histoCribPtsToday, johnny->histoCribPtsToday});
+				highest = highestTotalAchievedInHistos({molly->histoCribPtsToday, johnny->histoCribPtsToday});
+				printCentered(0, "- - - - - - -  (Combined) today's cribs  - - - - - - -", 0);
+			} else {
+				combinedHistoType = "All-time-crib";
+				histoMean = computeMeanFromHistos({molly->histoCribPtsAT, johnny->histoCribPtsAT});
+				highest = highestTotalAchievedInHistos({molly->histoCribPtsAT, johnny->histoCribPtsAT});
+				printCentered(0, "- - - - - - -  (Combined) crib breakdown (all-time)  - - - - - - -", 0);
+			}
 		}
 	}
+	string barChar = useThickBars ? "█": "■";
+	int combinedSum = 0;
 	cout << "\n\n";
-	for (int i = 0; i < 30; i++) {
-		cout << i << (i < 10 ? "  " : " ");
-		if (search(histoType, "molly-today") ) {
-			cout << string(molly.histoCribPtsToday[i], '*');
-		}
-		if (search(histoType, "molly-alltime") ) {
-			cout << string(molly.histoCribPtsAT[i], '*');
-		}
-		if (search(histoType, "johnny-today") ) {
-			cout << string(johnny.histoCribPtsToday[i], '*');
-		}
-		if (search(histoType, "johnny-alltime") ) {
-			cout << string(johnny.histoCribPtsAT[i], '*');
-		}
-		if (search(histoType, "combined-today") ) {
-			cout << string((molly.histoCribPtsToday[i] + johnny.histoCribPtsToday[i]), '*');
-		}
-		if (search(histoType, "combined-alltime") ) {
-			cout << string((molly.histoCribPtsAT[i] + johnny.histoCribPtsAT[i]), '*');
-		}
-		cout << endl;
+	for (int i = 0; i <= highest; i++) {
+		// cout << (i < 10 ? "  " : " ") << i << "  ";  // used to only need this once, but now need it each time due to the ordering of thicc bars
+		if      (combinedHistoType == "Today-hand")     combinedSum = molly->histoHandPtsToday[i] + johnny->histoHandPtsToday[i];
+		else if (combinedHistoType == "All-time-hand")  combinedSum = molly->histoHandPtsAT[i] + johnny->histoHandPtsAT[i];
+		else if (combinedHistoType == "Today-crib")     combinedSum = molly->histoCribPtsToday[i] + johnny->histoCribPtsToday[i];
+		else if (combinedHistoType == "All-time-crib")  combinedSum = molly->histoCribPtsAT[i] + johnny->histoCribPtsAT[i];
+		else  			                                combinedSum = histo[i]; // not a combined histo
+			
+		if (useThickBars)  cout << "\n     " << multString(combinedSum, barChar) << endl;
+		cout << (i < 10 ? "  " : " ") << i << "  ";
+		cout << multString(combinedSum, barChar) << (showAmounts && combinedSum > 0 ? " " + to_string(combinedSum) : "") << endl;
 	}
-	cout << "\n";
-	cout << "(should I also print the crib average here (or anything else?)\n"; // delete this
+	printCentered(1, "Average:  " + to_string(histoMean).substr(0, to_string(histoMean).size() - 4) + 
+				     " pts  (since Jan 19, 2022)", 4);
+}
+
+
+string multString(int multiple, string st) {
+	string multipliedSt = "";
+	for (int i = 0; i < multiple; i++)
+		multipliedSt += st;
+	return multipliedSt;
+}
+
+
+float computeMeanFromHistos(vector<vector<int>> histos) {
+	int numHands = 0;
+	int sumPts = 0;
+	for (vector<int> histo : histos) {
+		for (int i = 0; i < histo.size(); i++) {
+			numHands += histo[i];
+			sumPts   += i * histo[i];
+		}
+	}
+	return (sumPts * 1.0) / (numHands * 1.0);
+}
+
+
+int highestTotalAchievedInHistos(vector<vector<int>> histos) {
+	int highest = 0;
+	for (vector<int> histo : histos) {
+		for (int i = 0; i < histo.size(); i++) {
+			if (histo[i] > 0 && i > highest)
+				highest = i;
+		}
+	}
+	return highest;
 }
 
 
@@ -1323,13 +1458,17 @@ void printCentered(int numNewLinesBefore, string theThing, int numNewLinesAfter)
 
 
 void loadATDataFromFile(vector<Player*> players) {
-	cout << "\nLoading player save data . . . ";
-	fstream saveFile(SAVE_FILE_NAME, ios::in);
-	if(!saveFile){
-		cout << "\n\n*** Error in opening '" << SAVE_FILE_NAME << "' ***\n\n"
-		     << "Exiting program...\n\n\n";
-		exit(1);
-	}
+	cout << "\nLoading player save data . . .  ";
+	fstream saveFile;
+	saveFile.open(BLANK_SAVE_FILE_INPUT_NAME, ios::in);  // use blank test data if it's present
+	if(!saveFile.is_open()){
+		saveFile.open(SAVE_FILE_NAME, ios::in);  // otherwise use the real data
+		if(!saveFile.is_open()){
+			cout << "\n\n*** Error in opening '" << SAVE_FILE_NAME << "' ***\n\n"
+				 << "Exiting program...\n\n\n";
+			exit(1);
+		}
+	} else  usingBlankSaveData = true;
 
 	string line;
 	for (Player* p : players) {
@@ -1455,7 +1594,10 @@ void loadATDataFromFile(vector<Player*> players) {
 
 		} // /while there are lines in the file
 	} // /for each player
-	cout << "success :)" << endl;
+	
+	if (usingBlankSaveData)
+		  cout << "BLANK TEST DATA LOADED\n";
+	else  cout << "success :)\n";
 }
 
 
@@ -1552,9 +1694,17 @@ void saveATDataToFile(vector<Player*> players) {
 		saveData += "\n\n\n\n- - - - - - - - - -\n\n\n\n\n\n";
 	} // /for each player
 
-	cout << "Saving player data to file . . . ";
-	ofstream saveFile(SAVE_FILE_NAME, ios::out);
+	ofstream saveFile;
+	if (usingBlankSaveData) {
+		saveFile.open(BLANK_SAVE_FILE_OUTPUT_NAME, ios::out);
+		cout << "Saving data to 'test_save_data_output.txt' . . .  ";
+	}
+	else {
+		saveFile.open(SAVE_FILE_NAME, ios::out);
+		cout << "Saving data to 'cribulator_player_save_data.txt' . . .  ";
+	}
 	saveFile << saveData;
+	saveFile.close();
 	cout << "success :)\n\n\n\n";
 }
 
@@ -1663,6 +1813,9 @@ void backupVariables(vector<Player*> players, vector<Player*> playerBackups,
 		playerBackups[i]->numHandsThisGame = players[i]->numHandsThisGame;
 		playerBackups[i]->numCribsThisGame = players[i]->numCribsThisGame;
 	}
+	userWantsToCorrect1stCribCut = false;  // if we've reached the call to this function,
+										   // the correction request doesn't have to do with 
+										   // fixing the cut to see who gets crib first
 }
 
 
@@ -1806,4 +1959,17 @@ int mystoi(string st)  {
 
 	previousInvalidInputFix = intVersion;
 	return intVersion;
+}
+
+
+bool handleStatsRequests(string userInput, vector<Player*> players) {
+// Precondition:  players is {*molly, *johnny}, in that order
+// Postcondition:  Displays any stats requested. 
+//                 Returns true if they were requested, false otherwise.
+	if (search(userInput, HISTO_VARIATIONS)) {
+		printHistogram(userInput, players[0], players[1]);
+		userWantsToCorrectRound = false;  // ignore any correction requests in input that has a histo request
+		return true;
+	}
+	return false;
 }
