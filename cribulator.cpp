@@ -147,6 +147,7 @@ struct Player {
 bool USE_LEGACY_DATA = true;  // flag that enables/disables the use of legacy crib data
 							  // aka data from Jan 1 -> 17 before this program was complete
 							  // and all data was able to be collected.
+int SCREEN_WIDTH = 120;
 const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";
 const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
 const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
@@ -208,8 +209,10 @@ string cardStringForIndex(int);
 int pointValueOf(string);
 void printHistogram(string, Player*, Player*);
 string multString(int, string);
-float computeMeanFromHistos(vector<vector<int>>);
-int highestTotalAchievedInHistos(vector<vector<int>>);
+float computeMeanFromHisto(vector<int>);
+int domainOfHisto(vector<int>);
+int rangeOfHisto(vector<int>);
+vector<int> combinedHistoFrom(vector<vector<int>>);
 bool search(string, string);
 bool search(string, vector<string>);
 Player* determineLoser(vector<Player*>, Player*);
@@ -1042,7 +1045,7 @@ void resetThisGameDataForPlayers(vector<Player*> players) {
 
 float combinedCribAverage(vector<Player*> players, string timeframe) {
 	if (timeframe == "today")
-		return computeMeanFromHistos({players[0]->histoCribPtsToday, players[1]->histoCribPtsToday});
+		return computeMeanFromHisto(combinedHistoFrom({players[0]->histoCribPtsToday, players[1]->histoCribPtsToday}));
 
 	else if (timeframe == "all-time" && USE_LEGACY_DATA)
 		return ( (sumOfHistogram(players[0]->histoCribPtsAT) 
@@ -1052,7 +1055,7 @@ float combinedCribAverage(vector<Player*> players, string timeframe) {
 				  ((players[0]->numHandsAT + players[0]->legacyNumHands) * 1.0);
 
 	else if (timeframe == "all-time" && !USE_LEGACY_DATA)
-		return computeMeanFromHistos({players[0]->histoCribPtsAT, players[1]->histoCribPtsAT});
+		return computeMeanFromHisto(combinedHistoFrom({players[0]->histoCribPtsAT, players[1]->histoCribPtsAT}));
 
 	else {
 		cout << "\n\n\n*** Error: invalid timeframe specified for 'combinedCribAverage()' call ***\n";
@@ -1274,47 +1277,40 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 // using it to print stuff out from it...
 // ...It would also be wise to do that when sending it into all the helper functions
 // in here.
-	vector<string> mollyVariations = {"molly", "Molly", "M", "mo"};
-	vector<string> johnnyVariations = {"johnny", "Johnny", "j", "J"};
-	// vector<string> cribVariations = {"crib", "c"};  <-- don't think it's needed...
-	vector<string> handVariations = {"hand", "hands"};
-	vector<string> todayVariations = {"today", "td", "tod", "Today", "TD", "Tod"};
-	vector<string> alltimeVariations = {"at", "AT", "All-Time", "all-time", "alltime", 
-								        "All-time", "Alltime", "All Time", "all time"};
-	vector<string> thickVariations = {"th", "thick", "wide"};
-	vector<string> amountsVariations = {"am", "nu", "#", "tot"};
+	vector<string> mollyVariations      = {"mo", "M"};  // default is combined
+	vector<string> johnnyVariations     = {"j", "J"};
+	vector<string> handVariations       = {"han"};  // default is crib
+	vector<string> todayVariations      = {"tod", "td", "TD", "Tod"};  // default is all-time
+	vector<string> thickVariations      = {"th", "wi", "bi", "fat", "chub"};  // default is single bar width
+	vector<string> totalsVariations     = {"am", "nu", "#", "tot"};  // default doesn't show totals
+	vector<string> horizontalVariations = {"hor"};  // default is vertical presentation
 	vector<int> histo;
-	string combinedHistoType = "";
-	float histoMean = 0;
-	int highest = 0;  // highest point total achieved in the histogram(s) of interest
+	int domain = 0;  // highest point total achieved in the histogram(s) of interest
+	int range = 0;  // highest value found throughout the domain of the histogram(s) of interest
+	bool presentHorizontally = search(input, horizontalVariations);
 	bool useThickBars = search(input, thickVariations);
-	bool showAmounts = search(input, amountsVariations);
+	bool showAmounts = search(input, totalsVariations);
+	string barChar = !presentHorizontally ? "█": "■";// useThickBars ? "█": "■";
+	string headDec = "- - - - - - -";  // header decoration
+	string header;
 
 	cout << "\n\n\n";	
 	if (search(input, mollyVariations) ) {
 		if (search(input, handVariations) ){
 			if (search(input, todayVariations) ) {
 				histo = molly->histoHandPtsToday;
-				histoMean = computeMeanFromHistos({molly->histoHandPtsToday});
-				highest = highestTotalAchievedInHistos({molly->histoHandPtsToday});
-				printCentered(0, "- - - - - - -  Molly's hands today  - - - - - - -", 0);
+				header = "Molly's hands today";
 			} else {
 				histo = molly->histoHandPtsAT;
-				histoMean = computeMeanFromHistos({molly->histoHandPtsAT});
-				highest = highestTotalAchievedInHistos({molly->histoHandPtsAT});
-				printCentered(0, "- - - - - - -  Molly's hands (all-time)  - - - - - - -", 0);
+				header = "Molly's hands (all-time)";
 			}
 		} else { // default is crib histo
 			if (search(input, todayVariations) ) {
 				histo = molly->histoCribPtsToday;
-				histoMean = computeMeanFromHistos({molly->histoCribPtsToday});
-				highest = highestTotalAchievedInHistos({molly->histoCribPtsToday});
-				printCentered(0, "- - - - - - -  Molly's cribs today  - - - - - - -", 0);
+				header = "Molly's cribs today";
 			} else {
 				histo = molly->histoCribPtsAT;
-				histoMean = computeMeanFromHistos({molly->histoCribPtsAT});
-				highest = highestTotalAchievedInHistos({molly->histoCribPtsAT});
-				printCentered(0, "- - - - - - -  Molly's cribs (all-time)  - - - - - - -", 0);
+				header = "Molly's cribs (all-time)";
 			}
 		}
 	}
@@ -1322,73 +1318,92 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 		if (search(input, handVariations) ){
 			if (search(input, todayVariations) ) {
 				histo = johnny->histoHandPtsToday;
-				histoMean = computeMeanFromHistos({johnny->histoHandPtsToday});
-				highest = highestTotalAchievedInHistos({johnny->histoHandPtsToday});
-				printCentered(0, "- - - - - - -  Johnny's hands today  - - - - - - -", 0);
+				header = "Johnny's hands today";
 			} else {
 				histo = johnny->histoHandPtsAT;
-				histoMean = computeMeanFromHistos({johnny->histoHandPtsAT});
-				highest = highestTotalAchievedInHistos({johnny->histoHandPtsAT});
-				printCentered(0, "- - - - - - -  Johnny's hands (all-time)  - - - - - - -", 0);
+				header = "Johnny's hands (all-time)";
 			}
 		} else { // default is crib histo
 			if (search(input, todayVariations) ) {
 				histo = johnny->histoCribPtsToday;
-				histoMean = computeMeanFromHistos({johnny->histoCribPtsToday});
-				highest = highestTotalAchievedInHistos({johnny->histoCribPtsToday});
-				printCentered(0, "- - - - - - -  Johnny's cribs today  - - - - - - -", 0);
+				header = "Johnny's cribs today";
 			} else {
 				histo = johnny->histoCribPtsAT;
-				histoMean = computeMeanFromHistos({johnny->histoCribPtsAT});
-				highest = highestTotalAchievedInHistos({johnny->histoCribPtsAT});
-				printCentered(0, "- - - - - - -  Johnny's cribs (all-time)  - - - - - - -", 0);
+				header = "Johnny's cribs (all-time)";
 			}
 		}
 	}
 	else {  // combined (both players)
 		if (search(input, handVariations) ){
 			if (search(input, todayVariations) ) {
-				combinedHistoType = "Today-hand";
-				histoMean = computeMeanFromHistos({molly->histoHandPtsToday, johnny->histoHandPtsToday});
-				highest = highestTotalAchievedInHistos({molly->histoHandPtsToday, johnny->histoHandPtsToday});
-				printCentered(0, "- - - - - - -  (Combined) today's hands  - - - - - - -", 0);
+				histo = combinedHistoFrom({molly->histoHandPtsToday, johnny->histoHandPtsToday});
+				header = "(Combined) today's hands";
 			} else {
-				combinedHistoType = "All-time-hand";
-				histoMean = computeMeanFromHistos({molly->histoHandPtsAT, johnny->histoHandPtsAT});
-				highest = highestTotalAchievedInHistos({molly->histoHandPtsAT, johnny->histoHandPtsAT});
-				printCentered(0, "- - - - - - -  (Combined) hands breakdown (all-time)  - - - - - - -", 0);
+				histo = combinedHistoFrom({molly->histoHandPtsAT, johnny->histoHandPtsAT});
+				header = "(Combined) hands breakdown (all-time)";
 			}
 		} else {  // crib histos (combined)
 			if (search(input, todayVariations) ){
-				combinedHistoType = "Today-crib";
-				histoMean = computeMeanFromHistos({molly->histoCribPtsToday, johnny->histoCribPtsToday});
-				highest = highestTotalAchievedInHistos({molly->histoCribPtsToday, johnny->histoCribPtsToday});
-				printCentered(0, "- - - - - - -  (Combined) today's cribs  - - - - - - -", 0);
+				histo = combinedHistoFrom({molly->histoCribPtsToday, johnny->histoCribPtsToday});
+				header = "(Combined) today's cribs";
 			} else {
-				combinedHistoType = "All-time-crib";
-				histoMean = computeMeanFromHistos({molly->histoCribPtsAT, johnny->histoCribPtsAT});
-				highest = highestTotalAchievedInHistos({molly->histoCribPtsAT, johnny->histoCribPtsAT});
-				printCentered(0, "- - - - - - -  (Combined) crib breakdown (all-time)  - - - - - - -", 0);
+				histo = combinedHistoFrom({molly->histoCribPtsAT, johnny->histoCribPtsAT});
+				header = "(Combined) crib breakdown (all-time)";
 			}
 		}
 	}
-	string barChar = useThickBars ? "█": "■";
-	int combinedSum = 0;
-	cout << "\n\n";
-	for (int i = 0; i <= highest; i++) {
-		// cout << (i < 10 ? "  " : " ") << i << "  ";  // used to only need this once, but now need it each time due to the ordering of thicc bars
-		if      (combinedHistoType == "Today-hand")     combinedSum = molly->histoHandPtsToday[i] + johnny->histoHandPtsToday[i];
-		else if (combinedHistoType == "All-time-hand")  combinedSum = molly->histoHandPtsAT[i] + johnny->histoHandPtsAT[i];
-		else if (combinedHistoType == "Today-crib")     combinedSum = molly->histoCribPtsToday[i] + johnny->histoCribPtsToday[i];
-		else if (combinedHistoType == "All-time-crib")  combinedSum = molly->histoCribPtsAT[i] + johnny->histoCribPtsAT[i];
-		else  			                                combinedSum = histo[i]; // not a combined histo
-			
-		if (useThickBars)  cout << "\n     " << multString(combinedSum, barChar) << endl;
-		cout << (i < 10 ? "  " : " ") << i << "  ";
-		cout << multString(combinedSum, barChar) << (showAmounts && combinedSum > 0 ? " " + to_string(combinedSum) : "") << endl;
+
+	domain = domainOfHisto({histo});
+	range = rangeOfHisto({histo});
+
+	printCentered(0, headDec + "  " + header + "  " + headDec, 2);
+
+	if (presentHorizontally) {
+		for (int i = 0; i <= domain; i++) {			
+			if (useThickBars)  cout << "\n     " << multString(histo[i], barChar) << endl;
+			cout << (i < 10 ? "  " : " ") << i << "  ";
+			cout << multString(histo[i], barChar) << (showAmounts && histo[i] > 0 ? " " + to_string(histo[i]) : "") << endl;
+		}
+	} else {  // present vertically
+		const string INDENT = useThickBars ? string((SCREEN_WIDTH-(4 * domain+2))/2 - 1, ' ') : string((SCREEN_WIDTH-(3 * domain+2))/2 - 1, ' ');
+
+		cout << INDENT;  // top scale
+		for (int ptVal = 0; ptVal <= domain; ptVal++) {
+			if (useThickBars)
+				cout << (ptVal < 10 ? " " + to_string(ptVal) + "  " : " " + to_string(ptVal) + " ");
+			else
+				cout << (ptVal < 10 ? to_string(ptVal) + "  " : to_string(ptVal) + " ");
+		}
+		cout << endl << string(INDENT.size()-1, ' ') 
+			 << (useThickBars ?  string(4*domain + 4, '-') : string(3*domain + 4, '-')) << "\n\n";
+
+
+		for (int freq = range; freq > 0; freq--) {  // the bars
+			cout << INDENT;
+			for (int ptVal = 0; ptVal <= domain; ptVal++) {
+				if (useThickBars)
+					cout << (histo[ptVal] >= freq ? " " + barChar + barChar + " " : "    ");
+				else 
+					cout << (histo[ptVal] >= freq ? barChar + barChar + " " : "   ");
+			}
+			cout << endl;
+		}
+
+
+		// bottom scale
+		cout << endl << string(INDENT.size()-1, ' ') 
+			 << (useThickBars ?  string(4*domain + 4, '-') : string(3*domain + 4, '-')) << "\n\n";
+		cout << INDENT;
+		for (int ptVal = 0; ptVal <= domain; ptVal++) {
+			if (useThickBars)
+				cout << (ptVal < 10 ? " " + to_string(ptVal) + "  " : " " + to_string(ptVal) + " ");
+			else
+				cout << (ptVal < 10 ? to_string(ptVal) + "  " : to_string(ptVal) + " ");
+		}
 	}
-	printCentered(1, "Average:  " + to_string(histoMean).substr(0, to_string(histoMean).size() - 4) + 
-				     " pts  (since Jan 19, 2022)", 4);
+	string histoMean = to_string(computeMeanFromHisto(histo));
+	histoMean = histoMean.substr(0, histoMean.size() - 4);  // to only show 2 decimal places
+	printCentered(2, "Average:  " + histoMean + " pts  (since Jan 19, 2022)", 4);
 }
 
 
@@ -1400,28 +1415,49 @@ string multString(int multiple, string st) {
 }
 
 
-float computeMeanFromHistos(vector<vector<int>> histos) {
+float computeMeanFromHisto(vector<int> histo) {
 	int numHands = 0;
 	int sumPts = 0;
-	for (vector<int> histo : histos) {
-		for (int i = 0; i < histo.size(); i++) {
-			numHands += histo[i];
-			sumPts   += i * histo[i];
-		}
+	for (int i = 0; i < histo.size(); i++) {
+		numHands += histo[i];
+		sumPts   += i * histo[i];
 	}
 	return (sumPts * 1.0) / (numHands * 1.0);
 }
 
 
-int highestTotalAchievedInHistos(vector<vector<int>> histos) {
+int domainOfHisto(vector<int> histo) {
+// returns the upper bound of the histograms' UTILIZED domain (aka: the highest score achieved)
 	int highest = 0;
-	for (vector<int> histo : histos) {
-		for (int i = 0; i < histo.size(); i++) {
-			if (histo[i] > 0 && i > highest)
-				highest = i;
-		}
+	for (int i = 0; i < histo.size(); i++) {
+		if (histo[i] > 0 && i > highest)
+			highest = i;
 	}
 	return highest;
+}
+
+
+int rangeOfHisto(vector<int> histo) {
+// returns the biggest frequency found in the histogram
+	int biggest = 0;
+	for (int i = 0; i < histo.size(); i++) {
+		if (histo[i] > biggest)
+			biggest = histo[i];
+	}
+	return biggest;
+}
+
+
+vector<int> combinedHistoFrom(vector<vector<int>> histos) {
+// Combines histograms of the same size. Assumes those passed in are the same size.
+	vector<int> combined ((int)histos[0].size(), 0);
+	for (vector<int> h : histos) {
+		for (int i = 0; i < h.size(); i++) {
+			combined[i] += h[i];
+		}
+
+	}
+	return combined;
 }
 
 
@@ -1452,7 +1488,7 @@ Player* determineLoser(vector<Player*> players, Player* winner) {
 
 void printCentered(int numNewLinesBefore, string theThing, int numNewLinesAfter) {
 	cout << string(numNewLinesBefore, '\n') 
-		 << string((90 - theThing.length())/2, ' ') << theThing 
+		 << string((SCREEN_WIDTH - theThing.length())/2, ' ') << theThing 
 		 << string(numNewLinesAfter, '\n');
 }
 
