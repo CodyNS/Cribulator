@@ -144,7 +144,7 @@ struct Player {
 
 
 // CONSTANTS
-bool USE_LEGACY_DATA = true;  // flag that enables/disables the use of legacy crib data
+bool USE_LEGACY_DATA = false;  // flag that enables/disables the use of legacy crib data
 							  // aka data from Jan 1 -> 17 before this program was complete
 							  // and all data was able to be collected.
 int SCREEN_WIDTH = 120;
@@ -1100,7 +1100,7 @@ void performEndOfSessionTasks(vector<Player*> players) {
 
 void printEndOfSessionStuff(vector<Player*> players) {
 // display the stats you want to at the end of the day's session:
-	printCentered(3, "--  --  --  --  --  --  --  --  --  --  --  --  --  --", 3);
+	printCentered(2, "--  --  --  --  --  --  --  --  --  --  --  --  --  --", 3);
 
 	// print win vs win results today
 	if (players[0]->winsToday >= players[1]->winsToday) {
@@ -1116,19 +1116,23 @@ void printEndOfSessionStuff(vector<Player*> players) {
 
 	// print macrogame results today
 	printCentered(0, "Today's MACRO-game:", 2);
-	if (players[0]->macrogamePtsToday >= players[1]->macrogamePtsToday)
+	if (players[0]->macrogamePtsToday >= players[1]->macrogamePtsToday) {
 		printCentered(0, players[0]->name + " had " + to_string(players[0]->macrogamePtsToday) + " pts  vs  " +
-		     to_string(players[1]->macrogamePtsToday) + " pts for " + players[1]->name, 4);
-	else
+		     to_string(players[1]->macrogamePtsToday) + " pts for " + players[1]->name, 2);
+		printCentered(0, "(" + to_string(players[0]->macrogamePtsToday - players[1]->macrogamePtsToday) + " pt gain for " + players[0]->name + "!)", 4);
+	}
+	else {
 		printCentered(0, players[1]->name + " had " + to_string(players[1]->macrogamePtsToday) + " pts  vs  " +
-		     to_string(players[0]->macrogamePtsToday) + " pts for " + players[0]->name, 4);
+		     to_string(players[0]->macrogamePtsToday) + " pts for " + players[0]->name, 2);
+		printCentered(0, "(" + to_string(players[1]->macrogamePtsToday - players[0]->macrogamePtsToday) + " pt gain for " + players[1]->name + "!)", 4);
+	}
 
 	// print number of first crib wins
 	printCentered(0, "Today", 2);
 	printCentered(0, players[0]->name + " won " + to_string(players[0]->numFirstCribsWonToday) +
 		" of their " + to_string(players[0]->numFirstCribsToday) + " games where they had first crib.", 1);
 	printCentered(0, players[1]->name + " won " + to_string(players[1]->numFirstCribsWonToday) +
-		" of their " + to_string(players[1]->numFirstCribsToday) + " games where they had first crib.", 3);
+		" of their " + to_string(players[1]->numFirstCribsToday) + " games where they had first crib.", 2);
 
 	printCentered(0, "All-time", 2);
 	printCentered(0, players[0]->name + " has won " + to_string(players[0]->numFirstCribsWonAT) +
@@ -1137,13 +1141,19 @@ void printEndOfSessionStuff(vector<Player*> players) {
 		" of their " + to_string(players[1]->numFirstCribsAT) + " games where they had first crib all-time.", 4);
 
 	// print macrogame results AT
-	printCentered(0, "All-time MACRO-game (since Jan 19):", 2);
-	if (players[0]->macrogamePtsAT >= players[1]->macrogamePtsAT)
+	printCentered(0, "All-time MACRO-game (for 2023):", 2);
+	if (players[0]->macrogamePtsAT >= players[1]->macrogamePtsAT) {
 		printCentered(0, players[0]->name + ": " + to_string(players[0]->macrogamePtsAT) + " pts  vs  " +
-		    to_string(players[1]->macrogamePtsAT) + " pts for " + players[1]->name, 4);
-	else
+		    to_string(players[1]->macrogamePtsAT) + " pts for " + players[1]->name, 2);
+		printCentered(0, "(" + to_string(players[0]->macrogamePtsAT - players[1]->macrogamePtsAT) + " pt lead)", 4);
+		
+	}
+	else {
 		printCentered(0, players[1]->name + ": " + to_string(players[1]->macrogamePtsAT) + " pts  vs  " +
-		    to_string(players[0]->macrogamePtsAT) + " pts for " + players[0]->name, 4);
+		    to_string(players[0]->macrogamePtsAT) + " pts for " + players[0]->name, 2);
+		printCentered(0, "(" + to_string(players[1]->macrogamePtsAT - players[0]->macrogamePtsAT) + " pt lead)", 4);
+	}
+	
 
 	// print AT win vs win
 	int allTimeWinsP0 = players[0]->winsAT;
@@ -1271,12 +1281,6 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 // BLAH REFACTOR this: there's tons of repetition here. Could just declare a struct in 
 // here and then pass a pointer to an instance of that in to a helper function that
 // calculates all that stuff in each case.
-// ALSO: I couldn't figure out how to do this properly:
-// can I just make "histo" a pointer to the vector<int> of interest instead of making a
-// local copy of it? I'd like to, but can't figure out the syntax when it comes time to 
-// using it to print stuff out from it...
-// ...It would also be wise to do that when sending it into all the helper functions
-// in here.
 	vector<string> mollyVariations      = {"mo", "M"};  // default is combined
 	vector<string> johnnyVariations     = {"j", "J"};
 	vector<string> handVariations       = {"han"};  // default is crib
@@ -1287,6 +1291,11 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 	vector<int> histo;
 	int domain = 0;  // highest point total achieved in the histogram(s) of interest
 	int range = 0;  // highest value found throughout the domain of the histogram(s) of interest
+	int extraIndent = 0;
+	bool handHisto = search(input, handVariations);
+	bool forToday = search(input, todayVariations);
+	bool showMolly = search(input, mollyVariations);
+	bool showJohnny = search(input, johnnyVariations);
 	bool presentHorizontally = search(input, horizontalVariations);
 	bool useThickBars = search(input, thickVariations);
 	bool showAmounts = search(input, totalsVariations);
@@ -1295,9 +1304,9 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 	string header;
 
 	cout << "\n\n\n";	
-	if (search(input, mollyVariations) ) {
-		if (search(input, handVariations) ){
-			if (search(input, todayVariations) ) {
+	if (showMolly) {
+		if (handHisto){
+			if (forToday){
 				histo = molly->histoHandPtsToday;
 				header = "Molly's hands today";
 			} else {
@@ -1305,7 +1314,7 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 				header = "Molly's hands (all-time)";
 			}
 		} else { // default is crib histo
-			if (search(input, todayVariations) ) {
+			if (forToday){
 				histo = molly->histoCribPtsToday;
 				header = "Molly's cribs today";
 			} else {
@@ -1314,9 +1323,9 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 			}
 		}
 	}
-	else if (search(input, johnnyVariations) ) {
-		if (search(input, handVariations) ){
-			if (search(input, todayVariations) ) {
+	else if (showJohnny) {
+		if (handHisto){
+			if (forToday){
 				histo = johnny->histoHandPtsToday;
 				header = "Johnny's hands today";
 			} else {
@@ -1324,7 +1333,7 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 				header = "Johnny's hands (all-time)";
 			}
 		} else { // default is crib histo
-			if (search(input, todayVariations) ) {
+			if (forToday){
 				histo = johnny->histoCribPtsToday;
 				header = "Johnny's cribs today";
 			} else {
@@ -1333,9 +1342,9 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 			}
 		}
 	}
-	else {  // combined (both players)
-		if (search(input, handVariations) ){
-			if (search(input, todayVariations) ) {
+	else {  // default is combined (both players)
+		if (handHisto){
+			if (forToday){
 				histo = combinedHistoFrom({molly->histoHandPtsToday, johnny->histoHandPtsToday});
 				header = "(Combined) today's hands";
 			} else {
@@ -1343,7 +1352,7 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 				header = "(Combined) hands breakdown (all-time)";
 			}
 		} else {  // crib histos (combined)
-			if (search(input, todayVariations) ){
+			if (forToday){
 				histo = combinedHistoFrom({molly->histoCribPtsToday, johnny->histoCribPtsToday});
 				header = "(Combined) today's cribs";
 			} else {
@@ -1353,10 +1362,12 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 		}
 	}
 
-	domain = domainOfHisto({histo});
-	range = rangeOfHisto({histo});
+	domain = domainOfHisto(histo);
+	range = rangeOfHisto(histo);
+	if (domain < 10)        extraIndent += 1;
+	else if (useThickBars)  extraIndent += 2;
 
-	printCentered(0, headDec + "  " + header + "  " + headDec, 2);
+	printCentered(0, headDec + "  " + header + "  " + headDec, 3);
 
 	if (presentHorizontally) {
 		for (int i = 0; i <= domain; i++) {			
@@ -1365,24 +1376,24 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 			cout << multString(histo[i], barChar) << (showAmounts && histo[i] > 0 ? " " + to_string(histo[i]) : "") << endl;
 		}
 	} else {  // present vertically
-		const string INDENT = useThickBars ? string((SCREEN_WIDTH-(4 * domain+2))/2 - 1, ' ') : string((SCREEN_WIDTH-(3 * domain+2))/2 - 1, ' ');
+		const string INDENT = useThickBars ? string((SCREEN_WIDTH-(4 * domain+1))/2, ' ') : string((SCREEN_WIDTH-(3 * domain+1))/2, ' ');
 
 		cout << INDENT;  // top scale
 		for (int ptVal = 0; ptVal <= domain; ptVal++) {
 			if (useThickBars)
-				cout << (ptVal < 10 ? " " + to_string(ptVal) + "  " : " " + to_string(ptVal) + " ");
+				cout << (ptVal < 10 ? to_string(ptVal) + "   " : to_string(ptVal) + "  ");
 			else
 				cout << (ptVal < 10 ? to_string(ptVal) + "  " : to_string(ptVal) + " ");
 		}
-		cout << endl << string(INDENT.size()-1, ' ') 
-			 << (useThickBars ?  string(4*domain + 4, '-') : string(3*domain + 4, '-')) << "\n\n";
+
+		printCentered(1, (useThickBars ?  string(4*domain + 4 + extraIndent, '-') : string(3*domain + 4 + extraIndent, '-')), 2);
 
 
 		for (int freq = range; freq > 0; freq--) {  // the bars
 			cout << INDENT;
 			for (int ptVal = 0; ptVal <= domain; ptVal++) {
 				if (useThickBars)
-					cout << (histo[ptVal] >= freq ? " " + barChar + barChar + " " : "    ");
+					cout << (histo[ptVal] >= freq ? barChar + barChar + "  " : "    ");
 				else 
 					cout << (histo[ptVal] >= freq ? barChar + barChar + " " : "   ");
 			}
@@ -1391,19 +1402,18 @@ void printHistogram(string input, Player* molly, Player* johnny) {
 
 
 		// bottom scale
-		cout << endl << string(INDENT.size()-1, ' ') 
-			 << (useThickBars ?  string(4*domain + 4, '-') : string(3*domain + 4, '-')) << "\n\n";
+		printCentered(0, (useThickBars ?  string(4*domain + 4 + extraIndent, '-') : string(3*domain + 4 + extraIndent, '-')), 2);
 		cout << INDENT;
 		for (int ptVal = 0; ptVal <= domain; ptVal++) {
 			if (useThickBars)
-				cout << (ptVal < 10 ? " " + to_string(ptVal) + "  " : " " + to_string(ptVal) + " ");
+				cout << (ptVal < 10 ? to_string(ptVal) + "   " : to_string(ptVal) + "  ");
 			else
 				cout << (ptVal < 10 ? to_string(ptVal) + "  " : to_string(ptVal) + " ");
 		}
 	}
 	string histoMean = to_string(computeMeanFromHisto(histo));
 	histoMean = histoMean.substr(0, histoMean.size() - 4);  // to only show 2 decimal places
-	printCentered(2, "Average:  " + histoMean + " pts  (since Jan 19, 2022)", 4);
+	printCentered(3, "Average:  " + histoMean + " pts" + (forToday ? "" : "  (for 2023)"), 4);
 }
 
 
