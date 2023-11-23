@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodyNS' Cribulator</title>
+    <!-- <link rel="stylesheet" type="text/css" href="style-codymod.css"/> -->
+    <style>
+        body{background-color: #74859f; padding: 70px 10%}
+        #theForm textarea{display: block; margin-bottom: 35px; padding: 6px; width: 100%; background-color: #212121; color: #FFF; font-size: 1.4em}
+        #theForm label{display: block; padding-bottom: 9px; font-size: 1.5em}
+        #theForm input{display: block;  width: 100%; padding: 6px; background-color: #dfffe4; font-size: 1.5em}
+       
+    </style>
+</head>
+
+<body>
+    <form id="theForm" onsubmit="return processInput(this)">
+        <textarea rows="14" cols="" name="outputbox"></textarea>
+        <label for="inputbox">Input area: </label>
+        <input type="text" id="inputbox" name="inputbox">
+        <!-- <br><input type="submit" value="Submit"> -->
+    </form> 
+
+    <script>
+        function processInput(form) {
+            form.outputbox.value += form.inputbox.value + "\n";
+            form.inputbox.value = "";
+            form.outputbox.scrollTop = form.outputbox.scrollHeight;
+            return false;
+        }
+
+        // now put the C code here and translate it!
+
+    </script>
+
+
+    <!-- <script defer="" type="text/javascript" src="wordle-assets-codymod-dec072022.js"></script> -->
+</body>
+</html>

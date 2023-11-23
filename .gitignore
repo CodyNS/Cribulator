@@ -1,4 +1,5 @@
 /backup
+/web_version/refactored\ C++\ version
 .vscode
 .DS_Store
 
@@ -7,3 +8,4 @@ zzztest_(blank)_save_data.txt
 test_save_data_output.txt
 output\ format\ scribble.txt
 end\ of\ game\ stats\ design.txt
+
