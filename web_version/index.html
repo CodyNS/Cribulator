@@ -30,7 +30,66 @@
             return false;
         }
 
-        // now put the C code here and translate it!
+        class Player {
+            constructor() {
+                this.name = null;  // string
+                this.indtAdjstdName = null;  // string
+
+                this.legacyWins = 0; // int
+                this.legacyCribSum = 0;  // int. Combined value (Molly + Johnny)
+                this.legacyNumHands = 0;  // int
+
+                this.histoCutsForFirstCribAT = Array(13).fill(0);  // vector<int>
+                this.histoCutsForMyCribAT = Array(13).fill(0);  // vector<int> - aka starter cards
+                this.histoHandPtsAT = Array(30).fill(0);  // vector<int>
+                this.histoCribPtsAT = Array(30).fill(0);  // vector<int>
+                this.histoWinMarginsAT = Array(120).fill(0);  // vector<int>
+                this.numFirstCribsAT = 0;  // int
+                this.numFirstCribsWonAT = 0;  // int
+                this.peggedPtsAt = 0;  // int
+                this.unusedPtsAT = [0,0,0,0];  // vector<int> - hand, crib, nibs, pegged
+                this.macrogamePtsAT = 0;  // int
+                this.numSessionsPlayedAT = 0;  // int
+                this.numHandsAT = 0;  // int
+                this.numCribsAT = 0;  // int
+                this.gamesPlayedAT = 0;  // int
+                this.winsAT = 0;  // int
+                this.nobsAT = 0;  // int
+                this.FOKsAT = 0;  // int. four-of-a-kinds
+                this.flushesAT = 0;  // int
+                this.superFlushesAT = 0;  // int
+
+                this.cutsForFirstCribToday = [];  // vector<String>
+                this.histoCutsForMyCribToday = Array(13).fill(0);  // vector<int>
+                this.histoHandPtsToday = Array(30).fill(0);  // vector<int>
+                this.histoCribPtsToday = Array(30).fill(0);   // vector<int>
+                this.winMarginsToday = [];  // vector<int>
+                this.numFirstCribsToday = 0;  // int
+                this.numFirstCribsWonToday = 0;  // int
+                this.peggedPtsToday = 0;  // int
+                this.unusedPtsToday = [0,0,0,0];  // vector<int>
+                this.losingPositionToday = 0;  // int
+                this.macrogamePtsToday = 0;  // int
+                this.numHandsToday = 0;  // int
+                this.numCribsToday = 0;  // int
+                this.gamesPlayedToday = 0;  // int
+                this.winsToday = 0;  // int
+                this.nobsToday = 0;  // int
+                this.FOKsToday = 0;  // int
+                this.flushesToday = 0;  // int
+                this.superFlushesToday = 0;  // int
+
+                this.handPtsThisGame = 0;  // int
+                this.cribPtsThisGame = 0;  // int
+                this.numNibsThisGame = 0;  // int.  x2 to get pts
+                this.peggedPtsThisGame = 0;  // int
+                this.unusedPtsThisGame = [0,0,0,0];  // vector<int> 
+                this.numHandsThisGame = 0;  // int
+                this.numCribsThisGame = 0;  // int
+            } // constructor
+        } // class
+
+        // continue here...
 
     </script>
 
