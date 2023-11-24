@@ -143,11 +143,11 @@ struct Player {
 };
 
 
-// CONSTANTS
-bool USE_LEGACY_DATA = false;  // flag that enables/disables the use of legacy crib data
+// CONSTANTS -----------------------------------
+const bool USE_LEGACY_DATA = false;  // flag that enables/disables the use of legacy crib data
 							  // aka data from Jan 1 -> 17 before this program was complete
 							  // and all data was able to be collected.
-int SCREEN_WIDTH = 120;
+const int SCREEN_WIDTH = 120;
 const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";
 const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
 const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
@@ -173,11 +173,10 @@ const vector<string> END_SESSION_VARIATIONS = {"end", "done", "exit", "fin", "qu
 const vector<string> NUMBERS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
 
-// GLOBAL VARIABLES
+// GLOBAL VARIABLES (gasp) -------------------------
 bool usingBlankSaveData = false;  // flips to true if blank save data file is found
 bool userWantsToCorrectRound = false;  	   // flag used to trigger the correction mechanism
 bool userWantsToCorrect1stCribCut = false;
-//bool backupWasJustRestored = false;  	   // another flag part of the correction mechanism
 int lastCutCardIndex = -1;  	// used as part of the correction mechanism. Needed because of where 
 							    // the backup snapshot is taken. We need to correct the crib cut data
 								// for the cribber using this (we -1 for this cut in the cribber's data)
@@ -374,9 +373,7 @@ void initializeStuff(vector<Player*> players) {
 
 
 bool userWantsToEndSession(string input) {
-	if (search(input, END_SESSION_VARIATIONS))
-		return true;
-	return false;
+	return search(input, END_SESSION_VARIATIONS);
 }
 
 
@@ -1063,28 +1060,6 @@ float combinedCribAverage(vector<Player*> players, string timeframe) {
 		exit(1);
 	}
 }
-// float combinedCribAverage(vector<Player*> players, string timeframe) {
-// 	if (timeframe == "today")
-// 		return ((sumOfHistogram(players[0]->histoCribPtsToday) + sumOfHistogram(players[1]->histoCribPtsToday)) * 1.0) / 
-// 			(players[0]->numHandsToday * 1.0);
-
-// 	else if (timeframe == "all-time" && USE_LEGACY_DATA)
-// 		return ( (sumOfHistogram(players[0]->histoCribPtsAT) 
-// 			      + sumOfHistogram(players[1]->histoCribPtsAT)
-// 				  + players[0]->legacyCribSum ) * 1.0) 
-// 				/ 
-// 				  ((players[0]->numHandsAT + players[0]->legacyNumHands) * 1.0);
-
-// 	else if (timeframe == "all-time" && !USE_LEGACY_DATA)
-// 		return ((sumOfHistogram(players[0]->histoCribPtsAT) + sumOfHistogram(players[1]->histoCribPtsAT)) * 1.0) / 
-// 			(players[0]->numHandsAT * 1.0);
-
-// 	else {
-// 		cout << "\n\n\n*** Error: invalid timeframe specified for 'combinedCribAverage()' call ***\n";
-// 		cout << "program closing...\n\n\n";
-// 		exit(1);
-// 	}
-// }
 
 
 void performEndOfSessionTasks(vector<Player*> players) {

@@ -68,10 +68,10 @@ struct Player {
 
 
 // CONSTANTS
-bool USE_LEGACY_DATA = false;  // flag that enables/disables the use of legacy crib data
+const bool USE_LEGACY_DATA = false;  // flag that enables/disables the use of legacy crib data
 							  // aka data from Jan 1 -> 17 before this program was complete
 							  // and all data was able to be collected.
-int SCREEN_WIDTH = 120;
+const int SCREEN_WIDTH = 120;
 const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";
 const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
 const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
@@ -301,9 +301,7 @@ void initializeStuff() {
 
 
 bool userWantsToEndSession(string input) {
-	if (search(input, END_SESSION_VARIATIONS))
-		return true;
-	return false;
+	return search(input, END_SESSION_VARIATIONS);
 }
 
 
@@ -985,28 +983,6 @@ float combinedCribAverage(string timeframe) {
 		exit(1);
 	}
 }
-// float combinedCribAverage(vector<Player*> players, string timeframe) {
-// 	if (timeframe == "today")
-// 		return ((sumOfHistogram(players[0]->histoCribPtsToday) + sumOfHistogram(players[1]->histoCribPtsToday)) * 1.0) / 
-// 			(players[0]->numHandsToday * 1.0);
-
-// 	else if (timeframe == "all-time" && USE_LEGACY_DATA)
-// 		return ( (sumOfHistogram(players[0]->histoCribPtsAT) 
-// 			      + sumOfHistogram(players[1]->histoCribPtsAT)
-// 				  + players[0]->legacyCribSum ) * 1.0) 
-// 				/ 
-// 				  ((players[0]->numHandsAT + players[0]->legacyNumHands) * 1.0);
-
-// 	else if (timeframe == "all-time" && !USE_LEGACY_DATA)
-// 		return ((sumOfHistogram(players[0]->histoCribPtsAT) + sumOfHistogram(players[1]->histoCribPtsAT)) * 1.0) / 
-// 			(players[0]->numHandsAT * 1.0);
-
-// 	else {
-// 		cout << "\n\n\n*** Error: invalid timeframe specified for 'combinedCribAverage()' call ***\n";
-// 		cout << "program closing...\n\n\n";
-// 		exit(1);
-// 	}
-// }
 
 
 void performEndOfSessionTasks() {
