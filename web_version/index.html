@@ -160,104 +160,105 @@
             do {  // game loop ------------------------------
                 if (!userWantsToCorrect1stCribCut)
                     print("New game!\n\n");
-                if (await cutToSeeWhoGetsFirstCrib() == USER_WANTS_TO_END_SESSION)
+let userWantsToPlay = await cutToSeeWhoGetsFirstCrib();
+                if (userWantsToPlay == USER_WANTS_TO_END_SESSION)
                     break;
-                playerWhoHadFirstCrib = cribber;
-                cribber->numFirstCribsToday++;
-                cribber->numFirstCribsAT++;
+                playerWhoHadFirstCrib = cribber; CONTINUE HERE  // } while(!srch(userInput, END_SESSION_VARIATIONS) );
+            //     cribber->numFirstCribsToday++;
+            //     cribber->numFirstCribsAT++;
 
-                if (userWantsToCorrectRound)
-                    restoreBackupOfVariables();
+            //     if (userWantsToCorrectRound)
+            //         restoreBackupOfVariables();
                 
-                do {  // hand loop -----------------------			
-                    if (cutTheStarterCard() == DEALER_WINS_FROM_NIBS) {
-                        winner = winHandler("nibs win", 0);
-                        if (winner != null)  break;  // we have a winner
-                    }
-                    if (userWantsToCorrectRound) {
-                        if (userWantsToCorrect1stCribDraw()) {
-                            cribber->numFirstCribsToday--;
-                            cribber->numFirstCribsAT--;
-                            break;
-                        }
-                        restoreBackupOfVariables();
-                        continue;
-                    }
+            //     do {  // hand loop -----------------------			
+            //         if (cutTheStarterCard() == DEALER_WINS_FROM_NIBS) {
+            //             winner = winHandler("nibs win", 0);
+            //             if (winner != null)  break;  // we have a winner
+            //         }
+            //         if (userWantsToCorrectRound) {
+            //             if (userWantsToCorrect1stCribDraw()) {
+            //                 cribber->numFirstCribsToday--;
+            //                 cribber->numFirstCribsAT--;
+            //                 break;
+            //             }
+            //             restoreBackupOfVariables();
+            //             continue;
+            //         }
 
-                    backupVariables();
-                    //backupWasJustRestored = false;  <-- was using this to be efficient, but it was getting tricky so fck it
-                    incrementHandCounters();
+            //         backupVariables();
+            //         //backupWasJustRestored = false;  <-- was using this to be efficient, but it was getting tricky so fck it
+            //         incrementHandCounters();
 
-                    do {
-                        cout << nonCribber->indtAdjstdName << "'s hand:  ";
-                        userInput = getlineMine();
-                    } while(handleStatsRequests(userInput) );
-                    if (handleInputFlags(userInput, nonCribber) == SOMEONE_HAS_WON) {
-                        if (!srch(userInput, NUMBERS))
-                            winner = winHandler("someone won via pegging", 0);
-                        else 
-                            winner = winHandler("nonCribber wins via hand", pointValueOf(userInput));
-                        if (winner != null)  break;
-                    }
-                    if (userWantsToCorrectRound) {
-                        restoreBackupOfVariables();
-                        continue;
-                    }
-                    int ptValue = pointValueOf(userInput);
-                    nonCribber->histoHandPtsAT[ptValue]++;
-                    nonCribber->histoHandPtsToday[ptValue]++;
-                    nonCribber->handPtsThisGame += ptValue;
+            //         do {
+            //             cout << nonCribber->indtAdjstdName << "'s hand:  ";
+            //             userInput = getlineMine();
+            //         } while(handleStatsRequests(userInput) );
+            //         if (handleInputFlags(userInput, nonCribber) == SOMEONE_HAS_WON) {
+            //             if (!srch(userInput, NUMBERS))
+            //                 winner = winHandler("someone won via pegging", 0);
+            //             else 
+            //                 winner = winHandler("nonCribber wins via hand", pointValueOf(userInput));
+            //             if (winner != null)  break;
+            //         }
+            //         if (userWantsToCorrectRound) {
+            //             restoreBackupOfVariables();
+            //             continue;
+            //         }
+            //         int ptValue = pointValueOf(userInput);
+            //         nonCribber->histoHandPtsAT[ptValue]++;
+            //         nonCribber->histoHandPtsToday[ptValue]++;
+            //         nonCribber->handPtsThisGame += ptValue;
 
-                    do {
-                        cout << cribber->indtAdjstdName << "'s hand:  ";
-                        userInput = getlineMine();
-                    } while(handleStatsRequests(userInput) );
-                    if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
-                        winner = winHandler("cribber wins via hand", pointValueOf(userInput));
-                        if (winner != null)  break;
-                    }
-                    if (userWantsToCorrectRound) {
-                        restoreBackupOfVariables();
-                        continue;
-                    }
-                    ptValue = pointValueOf(userInput);
-                    cribber->histoHandPtsAT[ptValue]++;
-                    cribber->histoHandPtsToday[ptValue]++;
-                    cribber->handPtsThisGame += ptValue;
+            //         do {
+            //             cout << cribber->indtAdjstdName << "'s hand:  ";
+            //             userInput = getlineMine();
+            //         } while(handleStatsRequests(userInput) );
+            //         if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
+            //             winner = winHandler("cribber wins via hand", pointValueOf(userInput));
+            //             if (winner != null)  break;
+            //         }
+            //         if (userWantsToCorrectRound) {
+            //             restoreBackupOfVariables();
+            //             continue;
+            //         }
+            //         ptValue = pointValueOf(userInput);
+            //         cribber->histoHandPtsAT[ptValue]++;
+            //         cribber->histoHandPtsToday[ptValue]++;
+            //         cribber->handPtsThisGame += ptValue;
 
-                    do {
-                        cout << cribber->indtAdjstdName << "'s crib:  ";
-                        userInput = getlineMine();
-                    } while(handleStatsRequests(userInput) );
-                    if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
-                        winner = winHandler("cribber wins via crib", pointValueOf(userInput));
-                        if (winner != null)  break;
-                    }
-                    if (userWantsToCorrectRound) {
-                        restoreBackupOfVariables();
-                        continue;
-                    }
-                    ptValue = pointValueOf(userInput);
-                    cribber->histoCribPtsAT[ptValue]++;
-                    cribber->histoCribPtsToday[ptValue]++;
-                    cribber->cribPtsThisGame += ptValue;
+            //         do {
+            //             cout << cribber->indtAdjstdName << "'s crib:  ";
+            //             userInput = getlineMine();
+            //         } while(handleStatsRequests(userInput) );
+            //         if (handleInputFlags(userInput, cribber) == CRIBBER_WINS) {
+            //             winner = winHandler("cribber wins via crib", pointValueOf(userInput));
+            //             if (winner != null)  break;
+            //         }
+            //         if (userWantsToCorrectRound) {
+            //             restoreBackupOfVariables();
+            //             continue;
+            //         }
+            //         ptValue = pointValueOf(userInput);
+            //         cribber->histoCribPtsAT[ptValue]++;
+            //         cribber->histoCribPtsToday[ptValue]++;
+            //         cribber->cribPtsThisGame += ptValue;
                     
-                    printEndOfHandStuff(); 
-                    swapCribbers();
-                    cout << "\n\n" << cribber->name << "'s crib\n";
+            //         printEndOfHandStuff(); 
+            //         swapCribbers();
+            //         cout << "\n\n" << cribber->name << "'s crib\n";
                     
-                } while(!srch(userInput, END_SESSION_VARIATIONS));
+            //     } while(!srch(userInput, END_SESSION_VARIATIONS));
 
-                if (!userWantsToCorrect1stCribCut) {  // skip if user is correcting the draw to see who gets game's 1st crib
-                    updatePlayerDataAfterGame();
-                    printEndOfGameStuff();
-                    resetThisGameDataForPlayers();
-                }
+            //     if (!userWantsToCorrect1stCribCut) {  // skip if user is correcting the draw to see who gets game's 1st crib
+            //         updatePlayerDataAfterGame();
+            //         printEndOfGameStuff();
+            //         resetThisGameDataForPlayers();
+            //     }
 
-            } while(!srch(userInput, END_SESSION_VARIATIONS) );
+            // } while(!srch(userInput, END_SESSION_VARIATIONS) );
 
-            performEndOfSessionTasks();
-            return 0;
+            // performEndOfSessionTasks();
+            // return 0;
             }
 
 
@@ -291,45 +292,45 @@
                 mollyCardIndex = cardIndexOf(mollyCut);
 
                 do {
-                    cout << "Johnny draws a  ";
-                    johnnyCut = getlineMine();
+                    print("Johnny draws a  ");
+                    johnnyCut = await getlineMine();
                 } while(handleStatsRequests(johnnyCut) );
                 if (userWantsToEndSession(johnnyCut))
                     return false;  // quit for today
                 if (userWantsToCorrectRound) {
                     userWantsToCorrectRound = false;  // if correction input is entered here, assume user just wants to correct the cut input
-                    return cutToSeeWhoGetsFirstCrib(); // just start again if user wants to correct at this step
+                    return await cutToSeeWhoGetsFirstCrib(); // just start again if user wants to correct at this step
                 }
                 johnnyCardIndex = cardIndexOf(johnnyCut);
 
                 molly.histoCutsForFirstCribAT[mollyCardIndex]++;
-                molly.cutsForFirstCribToday.push_back(cardStringForIndex(mollyCardIndex));
+                molly.cutsForFirstCribToday.push(cardStringForIndex(mollyCardIndex));
                 johnny.histoCutsForFirstCribAT[johnnyCardIndex]++;
-                johnny.cutsForFirstCribToday.push_back(cardStringForIndex(johnnyCardIndex));
+                johnny.cutsForFirstCribToday.push(cardStringForIndex(johnnyCardIndex));
                 if (mollyCardIndex < johnnyCardIndex)
                     assignCribTo('M');
                 else  
                     assignCribTo('J');
-                cout << endl << cribber->name << " gets first crib!\n";
+                print("\n" + cribber.name + " gets first crib!\n");
                 return true;  // yes, we cut and are going to play a game
             }
 
 
             function assignCribTo(cribberInitial) {  // void (char)
-                // // BLAH these are using hard-coded values... at least use constants at the top of the program
-                // if (cribberInitial == 'm' || cribberInitial == 'M') {
-                //     cribber = &molly;
-                //     nonCribber = &johnny;
-                // }
-                // else if (cribberInitial == 'j' || cribberInitial == 'J') {
-                //     cribber = &johnny;
-                //     nonCribber = &molly;
-                // }
-                // else {
-                //     cout << "\n\nIncorrect cribberInitial passed to \"assignCribTo\" function: \'" 
-                //         << cribberInitial << "\'\nprogram closing..." << endl << endl;
-                //     exit(0);
-                // }
+                // BLAH these are using hard-coded values... at least use constants at the top of the program
+                if (cribberInitial == 'm' || cribberInitial == 'M') {
+                    cribber = molly;
+                    nonCribber = johnny;
+                }
+                else if (cribberInitial == 'j' || cribberInitial == 'J') {
+                    cribber = johnny;
+                    nonCribber = molly;
+                }
+                else {
+                    print("\n\nIncorrect cribberInitial passed to \"assignCribTo\" function: \'" +
+                          cribberInitial + "\'\nprogram closing...\n\n");
+                    exitProgram();
+                }
             }
 
 
@@ -964,7 +965,7 @@
             }
 
 
-            void printEndOfSessionStuff() {  // void ()
+            function printEndOfSessionStuff() {  // void ()
             // // display the stats you want to at the end of the day's session:
             //     printCentered(2, "--  --  --  --  --  --  --  --  --  --  --  --  --  --", 3);
 
@@ -1051,96 +1052,100 @@
 
 
             function cardIndexOf(card) {  // int (string)
-RESUME HERE
-            // // order is important. You'll want to srch for 10 before you srch for 1...
+            // order is important. You'll want to srch for 10 before you srch for 1...
 
-            //     // BLAH: also might want to check for erronious entries. What if 16 is entered, for example?
-            //     // ...in this case, it will catch as a 1 and be entered as an Ace
-            //     if (srch(card, "k"))  return 12;
-            //     if (srch(card, "K"))  return 12;
-            //     if (srch(card, "q"))  return 11;
-            //     if (srch(card, "Q"))  return 11;
-            //     if (srch(card, "j"))  return 10;  if (srch(card, "w"))  return 10;  // might happen
-            //     if (srch(card, "J"))  return 10;  if (srch(card, "W"))  return 10;
-            //     if (srch(card, "10")) return 9;
-            //     if (srch(card, "9"))  return 8;
-            //     if (srch(card, "8"))  return 7;
-            //     if (srch(card, "7"))  return 6;
-            //     if (srch(card, "6"))  return 5;
-            //     if (srch(card, "5"))  return 4;
-            //     if (srch(card, "4"))  return 3;
-            //     if (srch(card, "3"))  return 2;
-            //     if (srch(card, "2"))  return 1;
-            //     if (srch(card, "1"))  return 0;
-            //     if (srch(card, "a"))  return 0;
-            //     if (srch(card, "A"))  return 0;
+                // BLAH: also might want to check for erronious entries. What if 16 is entered, for example?
+                // ...in this case, it will catch as a 1 and be entered as an Ace
+                if (srch(card, "k"))  return 12;
+                if (srch(card, "K"))  return 12;
+                if (srch(card, "q"))  return 11;
+                if (srch(card, "Q"))  return 11;
+                if (srch(card, "j"))  return 10;  if (srch(card, "w"))  return 10;  // might happen
+                if (srch(card, "J"))  return 10;  if (srch(card, "W"))  return 10;
+                if (srch(card, "10")) return 9;
+                if (srch(card, "9"))  return 8;
+                if (srch(card, "8"))  return 7;
+                if (srch(card, "7"))  return 6;
+                if (srch(card, "6"))  return 5;
+                if (srch(card, "5"))  return 4;
+                if (srch(card, "4"))  return 3;
+                if (srch(card, "3"))  return 2;
+                if (srch(card, "2"))  return 1;
+                if (srch(card, "1"))  return 0;
+                if (srch(card, "a"))  return 0;
+                if (srch(card, "A"))  return 0;
 
-            //     printCentered(1, "Error: '" + card + "' is not a valid card", 2);
-            //     cout << "What card did you mean?  ";
-            //     string secondTry = getlineMine();
-            //     return cardIndexOf(secondTry);
+                printCentered(1, "Error: '" + card + "' is not a valid card", 2);
+                print("What card did you mean?  ");
+                let secondTry = getlineMine();
+                return cardIndexOf(secondTry);
             }
 
 
             function cardStringForIndex(cardIndex) {  // string (int)
-            // // converts a card index to its string representation (goes in the opposite direction as cardIndexOf() )
-            //     if (12 == cardIndex)  return "K";
-            //     if (11 == cardIndex)  return "Q";
-            //     if (10 == cardIndex)  return "J";
-            //     if (9  == cardIndex)  return "10";
-            //     if (8  == cardIndex)  return "9";
-            //     if (7  == cardIndex)  return "8";
-            //     if (6  == cardIndex)  return "7";
-            //     if (5  == cardIndex)  return "6";
-            //     if (4  == cardIndex)  return "5";
-            //     if (3  == cardIndex)  return "4";
-            //     if (2  == cardIndex)  return "3";
-            //     if (1  == cardIndex)  return "2";
-            //     if (0  == cardIndex)  return "A";
+            // converts a card index to its string representation (goes in the opposite direction as cardIndexOf() )
+                if (12 == cardIndex)  return "K";
+                if (11 == cardIndex)  return "Q";
+                if (10 == cardIndex)  return "J";
+                if (9  == cardIndex)  return "10";
+                if (8  == cardIndex)  return "9";
+                if (7  == cardIndex)  return "8";
+                if (6  == cardIndex)  return "7";
+                if (5  == cardIndex)  return "6";
+                if (4  == cardIndex)  return "5";
+                if (3  == cardIndex)  return "4";
+                if (2  == cardIndex)  return "3";
+                if (1  == cardIndex)  return "2";
+                if (0  == cardIndex)  return "A";
 
-            //     printCentered(2, "Error: '" + to_string(cardIndex) + "' is not a valid card index", 2);
-            //     cout << "Exiting program...\n\n\n";
-            //     exit(1);
+                printCentered(2, "Error: '" + cardIndex + "' is not a valid card index", 2);
+                print("Exiting program...\n\n\n");
+                exitProgram();
+            }
+
+
+            function exitProgram() {
+                alert("exitProgram() function called. Should probably do something more than just alerting like this...");
             }
 
 
             function pointValueOf(userInput) {  // int (string)
-            // // this is used to strip out any flags or excess present in userInput
-            // // order is important. You'll want to srch for 10 before you srch for 1...
+            // this is used to strip out any flags or excess present in userInput
+            // order is important. You'll want to srch for 10 before you srch for 1...
 
-            //     // BLAH: also might want to check for erronious entries. What if 19 is entered, for example?
-            //     // ...in this case, it will catch as a 1 and be entered as an Ace, which is not what we want
-            //     if (srch(userInput, "29")) return 29;
-            //     if (srch(userInput, "28")) return 28;
-            //     if (srch(userInput, "24")) return 24;
-            //     if (srch(userInput, "23")) return 23;
-            //     if (srch(userInput, "22")) return 22;
-            //     if (srch(userInput, "21")) return 21;
-            //     if (srch(userInput, "20")) return 20;
-            //     if (srch(userInput, "18")) return 18;
-            //     if (srch(userInput, "17")) return 17;
-            //     if (srch(userInput, "16")) return 16;
-            //     if (srch(userInput, "15")) return 15;
-            //     if (srch(userInput, "14")) return 14;
-            //     if (srch(userInput, "13")) return 13;
-            //     if (srch(userInput, "12")) return 12;
-            //     if (srch(userInput, "11")) return 11;	
-            //     if (srch(userInput, "10")) return 10;
-            //     if (srch(userInput, "9"))  return 9;
-            //     if (srch(userInput, "8"))  return 8;
-            //     if (srch(userInput, "7"))  return 7;
-            //     if (srch(userInput, "6"))  return 6;
-            //     if (srch(userInput, "5"))  return 5;
-            //     if (srch(userInput, "4"))  return 4;
-            //     if (srch(userInput, "3"))  return 3;
-            //     if (srch(userInput, "2"))  return 2;
-            //     if (srch(userInput, "1"))  return 1;
-            //     if (srch(userInput, "0"))  return 0;
+                // BLAH: also might want to check for erronious entries. What if 19 is entered, for example?
+                // ...in this case, it will catch as a 1 and be entered as an Ace, which is not what we want
+                if (srch(userInput, "29")) return 29;
+                if (srch(userInput, "28")) return 28;
+                if (srch(userInput, "24")) return 24;
+                if (srch(userInput, "23")) return 23;
+                if (srch(userInput, "22")) return 22;
+                if (srch(userInput, "21")) return 21;
+                if (srch(userInput, "20")) return 20;
+                if (srch(userInput, "18")) return 18;
+                if (srch(userInput, "17")) return 17;
+                if (srch(userInput, "16")) return 16;
+                if (srch(userInput, "15")) return 15;
+                if (srch(userInput, "14")) return 14;
+                if (srch(userInput, "13")) return 13;
+                if (srch(userInput, "12")) return 12;
+                if (srch(userInput, "11")) return 11;	
+                if (srch(userInput, "10")) return 10;
+                if (srch(userInput, "9"))  return 9;
+                if (srch(userInput, "8"))  return 8;
+                if (srch(userInput, "7"))  return 7;
+                if (srch(userInput, "6"))  return 6;
+                if (srch(userInput, "5"))  return 5;
+                if (srch(userInput, "4"))  return 4;
+                if (srch(userInput, "3"))  return 3;
+                if (srch(userInput, "2"))  return 2;
+                if (srch(userInput, "1"))  return 1;
+                if (srch(userInput, "0"))  return 0;
 
-            //     printCentered(2, "Error: '" + userInput + "' is not a possible score", 2);
-            //     cout << "  Re-enter value:  ";
-            //     string secondTry = getlineMine();
-            //     return pointValueOf(secondTry);
+                printCentered(2, "Error: '" + userInput + "' is not a possible score", 2);
+                print("  Re-enter value:  ");
+                let secondTry = getlineMine();
+                return pointValueOf(secondTry);
             }
 
 
@@ -1345,10 +1350,10 @@ RESUME HERE
                 if (typeof s2 === 'string')  // is s2 in s1?
                     return (s1.search(s2) != -1);
 
-                for (let st in s2) {  // is any of s2[] in s1?
+                for (const st of s2)  // is any of s2[] in s1?
                     if (s1.search(st) != -1)
                         return true;
-                }
+
                 return false;
             }
 
@@ -1629,10 +1634,9 @@ RESUME HERE
             async function getlineMine() {  // string ()
             // performs getline(cin, string) but does not allow null input.
             // It forces the user to enter something.
-                let userInput;  // string
                 do {
                     // getline(cin, userInput);
-                    userInput = await getUserInput();
+                    let userInput = await getUserInput();
                     // -----
                     if (userInput != "") {
                         if (srch(userInput, CORRECTION_VARIATIONS)) {
@@ -1864,7 +1868,7 @@ RESUME HERE
             }
 
 
-            function mystoi(string st)  {  // int (string)
+            function mystoi(st)  {  // int (string)
             // // an error-catching version of stoi(), used to catch cases where user enters letters
             // // ...before the number, so that the program doesn't crash. Forces the user to
             // // ...re-enter the input in those cases.
