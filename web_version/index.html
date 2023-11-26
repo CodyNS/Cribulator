@@ -6,7 +6,8 @@
     <title>CodyNS' Cribulator</title>
     <!-- <link rel="stylesheet" type="text/css" href="style-codymod.css"/> -->
     <style>
-        body{background-color: #74859f; padding: 70px 10%}
+        body{background-color: #74859f; padding: 30px 3%}
+        #theForm {margin-left: -12px}
         #theForm textarea{display: block; margin-bottom: 35px; padding: 6px; width: 100%; background-color: #212121; color: #FFF; font-size: 1.4em}
         #theForm label{display: block; padding-bottom: 9px; font-size: 1.5em}
         #theForm input{display: block;  width: 100%; padding: 6px; background-color: #dfffe4; font-size: 1.5em}
@@ -16,7 +17,7 @@
 
 <body>
     <form id="theForm" onsubmit="return processInput(this)">
-        <textarea rows="14" cols="" name="outputbox"></textarea>
+        <textarea rows="20" cols="" name="outputbox"></textarea>
         <label for="inputbox">Input area: </label>
         <input type="text" id="inputbox" name="inputbox">
         <!-- <br><input type="submit" value="Submit"> -->
@@ -268,6 +269,11 @@
         }
 
 
+        function float0digs(nbr) { // float (float)  (This is unique to this JS version)
+            return nbr.toFixed(0);
+        }
+
+
         function userWantsToEndSession(input) { // bool (string)
             return srch(input, END_SESSION_VARIATIONS);
         }
@@ -407,9 +413,6 @@
         }
 
 
-
-
-// CONTINUE HERE: move all operands to the end of previous line instead of start of next line... doesn't work
         async function winHandler(winCondition, ptsInWinningInput) {  // Player* (string, int)
         // Calculates all the necessary crap when user indicates a win
         // returns a pointer to the winning player
@@ -421,32 +424,32 @@
                 printCentered(1, "~ ~ ~  " + cribber.name + " wins!  ~ ~ ~", 3);
                 print("How many points were needed?  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;  // user wants to make a correction; no winner rn
-                cribber.unusedPtsThisGame[NIBS] += (2 - mystoi(userInput) );
+                cribber.unusedPtsThisGame[NIBS] += (2 - await mystoi(userInput) );
                 cribber.unusedPtsToday[NIBS] += cribber.unusedPtsThisGame[NIBS];
                 cribber.unusedPtsAT[NIBS] += cribber.unusedPtsThisGame[NIBS];
 
                 // calc winner's pegged points for this game
-                cribber.peggedPtsThisGame = 121 - mystoi(userInput)
-                                                - cribber.handPtsThisGame 
-                                                - cribber.cribPtsThisGame 
-                                                - ((cribber.numNibsThisGame - 1) * 2); // -1 because we've already incr. numNibsThisGame in cut function								 
+                cribber.peggedPtsThisGame = 121 - await mystoi(userInput) -
+                                                cribber.handPtsThisGame -
+                                                cribber.cribPtsThisGame -
+                                                ((cribber.numNibsThisGame - 1) * 2); // -1 because we've already incr. numNibsThisGame in cut function								 
                 cribber.peggedPtsToday += cribber.peggedPtsThisGame;
                 cribber.peggedPtsAt += cribber.peggedPtsThisGame;
 
                 // record loser's position
                 print(" " + nonCribber.indtAdjstdName + "'s pos:  ");  // nonCribber lost
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                nonCribber.losingPositionToday += mystoi(userInput);
+                nonCribber.losingPositionToday += await mystoi(userInput);
 
                 // use that to calc the winner's winning margin
-                cribber.winMarginsToday.push(121 - mystoi(userInput));
-                cribber.histoWinMarginsAT[121 - mystoi(userInput)]++;
+                cribber.winMarginsToday.push(121 - await mystoi(userInput));
+                cribber.histoWinMarginsAT[121 - await mystoi(userInput)]++;
 
                 // and now calc loser's pegged points for this game
-                nonCribber.peggedPtsThisGame = mystoi(userInput)
-                                                - nonCribber.handPtsThisGame 
-                                                - nonCribber.cribPtsThisGame 
-                                                - (nonCribber.numNibsThisGame * 2);								 
+                nonCribber.peggedPtsThisGame = await mystoi(userInput) -
+                                                nonCribber.handPtsThisGame -
+                                                nonCribber.cribPtsThisGame -
+                                                (nonCribber.numNibsThisGame * 2);								 
                 nonCribber.peggedPtsToday += nonCribber.peggedPtsThisGame;
                 nonCribber.peggedPtsAt += nonCribber.peggedPtsThisGame;
 
@@ -459,32 +462,32 @@
                 print(nonCribber.indtAdjstdName + "'s hand:  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                 handleInputFlags(userInput, nonCribber);
-                nonCribber.handPtsThisGame += mystoi(userInput);
-                nonCribber.histoHandPtsToday[mystoi(userInput)]++;
-                nonCribber.histoHandPtsAT[mystoi(userInput)]++;
-                nonCribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                nonCribber.unusedPtsToday[HAND] += mystoi(userInput);
-                nonCribber.unusedPtsAT[HAND] += mystoi(userInput);
+                nonCribber.handPtsThisGame += await mystoi(userInput);
+                nonCribber.histoHandPtsToday[await mystoi(userInput)]++;
+                nonCribber.histoHandPtsAT[await mystoi(userInput)]++;
+                nonCribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                nonCribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                nonCribber.unusedPtsAT[HAND] += await mystoi(userInput);
 
                 print(cribber.indtAdjstdName + "'s hand:  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                 handleInputFlags(userInput, cribber);
-                cribber.handPtsThisGame += mystoi(userInput);
-                cribber.histoHandPtsToday[mystoi(userInput)]++;
-                cribber.histoHandPtsAT[mystoi(userInput)]++;
-                cribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                cribber.unusedPtsToday[HAND] += mystoi(userInput);
-                cribber.unusedPtsAT[HAND] += mystoi(userInput);
+                cribber.handPtsThisGame += await mystoi(userInput);
+                cribber.histoHandPtsToday[await mystoi(userInput)]++;
+                cribber.histoHandPtsAT[await mystoi(userInput)]++;
+                cribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                cribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                cribber.unusedPtsAT[HAND] += await mystoi(userInput);
 
                 print(cribber.indtAdjstdName + "'s crib:  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                 handleInputFlags(userInput, cribber);
-                cribber.cribPtsThisGame += mystoi(userInput);
-                cribber.histoCribPtsToday[mystoi(userInput)]++;
-                cribber.histoCribPtsAT[mystoi(userInput)]++;
-                cribber.unusedPtsThisGame[CRIB] += mystoi(userInput);
-                cribber.unusedPtsToday[CRIB] += mystoi(userInput);
-                cribber.unusedPtsAT[CRIB] += mystoi(userInput);
+                cribber.cribPtsThisGame += await mystoi(userInput);
+                cribber.histoCribPtsToday[await mystoi(userInput)]++;
+                cribber.histoCribPtsAT[await mystoi(userInput)]++;
+                cribber.unusedPtsThisGame[CRIB] += await mystoi(userInput);
+                cribber.unusedPtsToday[CRIB] += await mystoi(userInput);
+                cribber.unusedPtsAT[CRIB] += await mystoi(userInput);
 
                 return cribber;
             }
@@ -501,32 +504,32 @@
                 let peggedHypothetically = await getlineMine();  if (userWantsToCorrectRound)  return null;
 
                 if (cribber.name[0].toUpperCase() == userInput[0].toUpperCase()) {  // cribber won
-                    cribber.unusedPtsThisGame[PEGGED] += (mystoi(peggedHypothetically) - mystoi(ptsNeeded) );
+                    cribber.unusedPtsThisGame[PEGGED] += (await mystoi(peggedHypothetically) - await mystoi(ptsNeeded) );
                     cribber.unusedPtsToday[PEGGED] += cribber.unusedPtsThisGame[PEGGED];
                     cribber.unusedPtsAT[PEGGED] += cribber.unusedPtsThisGame[PEGGED];
 
                     // calc winner's pegged points for this game
-                    cribber.peggedPtsThisGame = 121 - cribber.handPtsThisGame 
-                                                    - cribber.cribPtsThisGame 
-                                                    - (cribber.numNibsThisGame * 2) 
-                                                    + cribber.unusedPtsThisGame[PEGGED];  // have to include these to be consistent with the other point variables (they all store the macrogame data, not strict game data)							 
+                    cribber.peggedPtsThisGame = 121 - cribber.handPtsThisGame -
+                                                      cribber.cribPtsThisGame -
+                                                      (cribber.numNibsThisGame * 2) +
+                                                      cribber.unusedPtsThisGame[PEGGED];  // have to include these to be consistent with the other point variables (they all store the macrogame data, not strict game data)							 
                     cribber.peggedPtsToday += cribber.peggedPtsThisGame;
                     cribber.peggedPtsAt += cribber.peggedPtsThisGame;
 
                     // record loser's position
                     print(" " + nonCribber.indtAdjstdName + "'s pos:  ");  // nonCribber lost
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                    nonCribber.losingPositionToday += mystoi(userInput);
+                    nonCribber.losingPositionToday += await mystoi(userInput);
 
                     // use that to calc the winner's winning margin
-                    cribber.winMarginsToday.push(121 - mystoi(userInput));
-                    cribber.histoWinMarginsAT[121 - mystoi(userInput)]++;
+                    cribber.winMarginsToday.push(121 - await mystoi(userInput));
+                    cribber.histoWinMarginsAT[121 - await mystoi(userInput)]++;
 
                     // and now calc loser's pegged points for this game
-                    nonCribber.peggedPtsThisGame = mystoi(userInput)
-                                                    - nonCribber.handPtsThisGame 
-                                                    - nonCribber.cribPtsThisGame 
-                                                    - (nonCribber.numNibsThisGame * 2);								 
+                    nonCribber.peggedPtsThisGame = await mystoi(userInput) -
+                                                    nonCribber.handPtsThisGame -
+                                                    nonCribber.cribPtsThisGame -
+                                                    (nonCribber.numNibsThisGame * 2);								 
                     nonCribber.peggedPtsToday += nonCribber.peggedPtsThisGame;
                     nonCribber.peggedPtsAt += nonCribber.peggedPtsThisGame;
 
@@ -534,62 +537,62 @@
                     print(nonCribber.indtAdjstdName + "'s hand:  ");
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                     handleInputFlags(userInput, nonCribber);
-                    nonCribber.handPtsThisGame += mystoi(userInput);
-                    nonCribber.histoHandPtsToday[mystoi(userInput)]++;
-                    nonCribber.histoHandPtsAT[mystoi(userInput)]++;
-                    nonCribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                    nonCribber.unusedPtsToday[HAND] += mystoi(userInput);
-                    nonCribber.unusedPtsAT[HAND] += mystoi(userInput);
+                    nonCribber.handPtsThisGame += await mystoi(userInput);
+                    nonCribber.histoHandPtsToday[await mystoi(userInput)]++;
+                    nonCribber.histoHandPtsAT[await mystoi(userInput)]++;
+                    nonCribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                    nonCribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                    nonCribber.unusedPtsAT[HAND] += await mystoi(userInput);
                     
                     print(cribber.indtAdjstdName + "'s hand:  ");
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                     handleInputFlags(userInput, cribber);
-                    cribber.handPtsThisGame += mystoi(userInput);			
-                    cribber.histoHandPtsToday[mystoi(userInput)]++;
-                    cribber.histoHandPtsAT[mystoi(userInput)]++;
-                    cribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                    cribber.unusedPtsToday[HAND] += mystoi(userInput);
-                    cribber.unusedPtsAT[HAND] += mystoi(userInput);
+                    cribber.handPtsThisGame += await mystoi(userInput);			
+                    cribber.histoHandPtsToday[await mystoi(userInput)]++;
+                    cribber.histoHandPtsAT[await mystoi(userInput)]++;
+                    cribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                    cribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                    cribber.unusedPtsAT[HAND] += await mystoi(userInput);
 
                     print(cribber.indtAdjstdName + "'s crib:  ");
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                     handleInputFlags(userInput, cribber);
-                    cribber.cribPtsThisGame += mystoi(userInput);
-                    cribber.histoCribPtsToday[mystoi(userInput)]++;
-                    cribber.histoCribPtsAT[mystoi(userInput)]++;
-                    cribber.unusedPtsThisGame[CRIB] += mystoi(userInput);
-                    cribber.unusedPtsToday[CRIB] += mystoi(userInput);
-                    cribber.unusedPtsAT[CRIB] += mystoi(userInput);
+                    cribber.cribPtsThisGame += await mystoi(userInput);
+                    cribber.histoCribPtsToday[await mystoi(userInput)]++;
+                    cribber.histoCribPtsAT[await mystoi(userInput)]++;
+                    cribber.unusedPtsThisGame[CRIB] += await mystoi(userInput);
+                    cribber.unusedPtsToday[CRIB] += await mystoi(userInput);
+                    cribber.unusedPtsAT[CRIB] += await mystoi(userInput);
 
                     return cribber;
                 }
                 else {  // nonCribber won
-                    nonCribber.unusedPtsThisGame[PEGGED] += (mystoi(peggedHypothetically) - mystoi(ptsNeeded) );
+                    nonCribber.unusedPtsThisGame[PEGGED] += (await mystoi(peggedHypothetically) - await mystoi(ptsNeeded) );
                     nonCribber.unusedPtsToday[PEGGED] += nonCribber.unusedPtsThisGame[PEGGED];
                     nonCribber.unusedPtsAT[PEGGED] += nonCribber.unusedPtsThisGame[PEGGED];
 
                     // calc winner's pegged points for this game
-                    nonCribber.peggedPtsThisGame = 121 - nonCribber.handPtsThisGame 
-                                                        - nonCribber.cribPtsThisGame 
-                                                        - (nonCribber.numNibsThisGame * 2)
-                                                        + nonCribber.unusedPtsThisGame[PEGGED]; // (for same reason given above in 'if' case)					 
+                    nonCribber.peggedPtsThisGame = 121 - nonCribber.handPtsThisGame -
+                                                         nonCribber.cribPtsThisGame -
+                                                         (nonCribber.numNibsThisGame * 2) +
+                                                         nonCribber.unusedPtsThisGame[PEGGED]; // (for same reason given above in 'if' case)					 
                     nonCribber.peggedPtsToday += nonCribber.peggedPtsThisGame;
                     nonCribber.peggedPtsAt += nonCribber.peggedPtsThisGame;
 
                     // record loser's position
                     print(" " + cribber.indtAdjstdName + "'s pos:  ");  // cribber lost
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                    cribber.losingPositionToday += mystoi(userInput);
+                    cribber.losingPositionToday += await mystoi(userInput);
 
                     // use that to calc the winner's winning margin
-                    nonCribber.winMarginsToday.push(121 - mystoi(userInput));
-                    nonCribber.histoWinMarginsAT[121 - mystoi(userInput)]++;
+                    nonCribber.winMarginsToday.push(121 - await mystoi(userInput));
+                    nonCribber.histoWinMarginsAT[121 - await mystoi(userInput)]++;
 
                     // and now calc loser's pegged points for this game
-                    cribber.peggedPtsThisGame = mystoi(userInput)
-                                                    - cribber.handPtsThisGame 
-                                                    - cribber.cribPtsThisGame 
-                                                    - (cribber.numNibsThisGame * 2);								 
+                    cribber.peggedPtsThisGame = await mystoi(userInput) -
+                                                    cribber.handPtsThisGame -
+                                                    cribber.cribPtsThisGame -
+                                                    (cribber.numNibsThisGame * 2);								 
                     cribber.peggedPtsToday += cribber.peggedPtsThisGame;
                     cribber.peggedPtsAt += cribber.peggedPtsThisGame;
 
@@ -597,32 +600,32 @@
                     print(nonCribber.indtAdjstdName + "'s hand:  ");
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                     handleInputFlags(userInput, nonCribber);
-                    nonCribber.handPtsThisGame += mystoi(userInput);
-                    nonCribber.histoHandPtsToday[mystoi(userInput)]++;
-                    nonCribber.histoHandPtsAT[mystoi(userInput)]++;
-                    nonCribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                    nonCribber.unusedPtsToday[HAND] += mystoi(userInput);
-                    nonCribber.unusedPtsAT[HAND] += mystoi(userInput);
+                    nonCribber.handPtsThisGame += await mystoi(userInput);
+                    nonCribber.histoHandPtsToday[await mystoi(userInput)]++;
+                    nonCribber.histoHandPtsAT[await mystoi(userInput)]++;
+                    nonCribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                    nonCribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                    nonCribber.unusedPtsAT[HAND] += await mystoi(userInput);
 
                     print(cribber.indtAdjstdName + "'s hand:  ");
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                     handleInputFlags(userInput, cribber);
-                    cribber.handPtsThisGame += mystoi(userInput);
-                    cribber.histoHandPtsToday[mystoi(userInput)]++;
-                    cribber.histoHandPtsAT[mystoi(userInput)]++;
-                    cribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                    cribber.unusedPtsToday[HAND] += mystoi(userInput);
-                    cribber.unusedPtsAT[HAND] += mystoi(userInput);
+                    cribber.handPtsThisGame += await mystoi(userInput);
+                    cribber.histoHandPtsToday[await mystoi(userInput)]++;
+                    cribber.histoHandPtsAT[await mystoi(userInput)]++;
+                    cribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                    cribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                    cribber.unusedPtsAT[HAND] += await mystoi(userInput);
                     
                     print(cribber.indtAdjstdName + "'s crib:  ");
                     userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                     handleInputFlags(userInput, cribber);
-                    cribber.cribPtsThisGame += mystoi(userInput);
-                    cribber.histoCribPtsToday[mystoi(userInput)]++;
-                    cribber.histoCribPtsAT[mystoi(userInput)]++;
-                    cribber.unusedPtsThisGame[CRIB] += mystoi(userInput);
-                    cribber.unusedPtsToday[CRIB] += mystoi(userInput);
-                    cribber.unusedPtsAT[CRIB] += mystoi(userInput);
+                    cribber.cribPtsThisGame += await mystoi(userInput);
+                    cribber.histoCribPtsToday[await mystoi(userInput)]++;
+                    cribber.histoCribPtsAT[await mystoi(userInput)]++;
+                    cribber.unusedPtsThisGame[CRIB] += await mystoi(userInput);
+                    cribber.unusedPtsToday[CRIB] += await mystoi(userInput);
+                    cribber.unusedPtsAT[CRIB] += await mystoi(userInput);
 
                     return nonCribber;
                 }
@@ -633,32 +636,32 @@
                 printCentered(1, "~ ~ ~  " + nonCribber.name + " wins!  ~ ~ ~", 3);
                 print("How many points were needed?  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                nonCribber.unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
+                nonCribber.unusedPtsThisGame[HAND] += (ptsInWinningInput - await mystoi(userInput) );
                 nonCribber.unusedPtsToday[HAND] += nonCribber.unusedPtsThisGame[HAND];
                 nonCribber.unusedPtsAT[HAND] += nonCribber.unusedPtsThisGame[HAND];
 
                 // calc winner's pegged points for this game
-                nonCribber.peggedPtsThisGame = 121 - mystoi(userInput)
-                                                    - nonCribber.handPtsThisGame 
-                                                    - nonCribber.cribPtsThisGame 
-                                                    - (nonCribber.numNibsThisGame * 2);							 
+                nonCribber.peggedPtsThisGame = 121 - await mystoi(userInput) -
+                                                     nonCribber.handPtsThisGame -
+                                                     nonCribber.cribPtsThisGame -
+                                                     (nonCribber.numNibsThisGame * 2);							 
                 nonCribber.peggedPtsToday += nonCribber.peggedPtsThisGame;
                 nonCribber.peggedPtsAt += nonCribber.peggedPtsThisGame;
 
                 // record loser's position
                 print(" " + cribber.indtAdjstdName + "'s pos:  ");  // cribber lost
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                cribber.losingPositionToday += mystoi(userInput);
+                cribber.losingPositionToday += await mystoi(userInput);
 
                 // use that to calc the winner's winning margin
-                nonCribber.winMarginsToday.push(121 - mystoi(userInput));
-                nonCribber.histoWinMarginsAT[121 - mystoi(userInput)]++;
+                nonCribber.winMarginsToday.push(121 - await mystoi(userInput));
+                nonCribber.histoWinMarginsAT[121 - await mystoi(userInput)]++;
 
                 // and now calc loser's pegged points for this game
-                cribber.peggedPtsThisGame = mystoi(userInput)
-                                                - cribber.handPtsThisGame 
-                                                - cribber.cribPtsThisGame 
-                                                - (cribber.numNibsThisGame * 2);								 
+                cribber.peggedPtsThisGame = await mystoi(userInput) -
+                                                cribber.handPtsThisGame - 
+                                                cribber.cribPtsThisGame -
+                                                (cribber.numNibsThisGame * 2);								 
                 cribber.peggedPtsToday += cribber.peggedPtsThisGame;
                 cribber.peggedPtsAt += cribber.peggedPtsThisGame;
 
@@ -670,22 +673,22 @@
                 print(cribber.indtAdjstdName + "'s hand:  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                 handleInputFlags(userInput, cribber);
-                cribber.handPtsThisGame += mystoi(userInput);
-                cribber.histoHandPtsToday[mystoi(userInput)]++;
-                cribber.histoHandPtsAT[mystoi(userInput)]++;
-                cribber.unusedPtsThisGame[HAND] += mystoi(userInput);
-                cribber.unusedPtsToday[HAND] += mystoi(userInput);
-                cribber.unusedPtsAT[HAND] += mystoi(userInput);
+                cribber.handPtsThisGame += await mystoi(userInput);
+                cribber.histoHandPtsToday[await mystoi(userInput)]++;
+                cribber.histoHandPtsAT[await mystoi(userInput)]++;
+                cribber.unusedPtsThisGame[HAND] += await mystoi(userInput);
+                cribber.unusedPtsToday[HAND] += await mystoi(userInput);
+                cribber.unusedPtsAT[HAND] += await mystoi(userInput);
                 
                 print(cribber.indtAdjstdName + "'s crib:  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                 handleInputFlags(userInput, cribber);
-                cribber.cribPtsThisGame += mystoi(userInput);
-                cribber.histoCribPtsToday[mystoi(userInput)]++;
-                cribber.histoCribPtsAT[mystoi(userInput)]++;
-                cribber.unusedPtsThisGame[CRIB] += mystoi(userInput);
-                cribber.unusedPtsToday[CRIB] += mystoi(userInput);
-                cribber.unusedPtsAT[CRIB] += mystoi(userInput);
+                cribber.cribPtsThisGame += await mystoi(userInput);
+                cribber.histoCribPtsToday[await mystoi(userInput)]++;
+                cribber.histoCribPtsAT[await mystoi(userInput)]++;
+                cribber.unusedPtsThisGame[CRIB] += await mystoi(userInput);
+                cribber.unusedPtsToday[CRIB] += await mystoi(userInput);
+                cribber.unusedPtsAT[CRIB] += await mystoi(userInput);
 
                 return nonCribber;
             }
@@ -695,32 +698,32 @@
                 printCentered(1, "~ ~ ~  " + cribber.name + " wins!  ~ ~ ~", 3);
                 print("How many points were needed?  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                cribber.unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
+                cribber.unusedPtsThisGame[HAND] += (ptsInWinningInput - await mystoi(userInput) );
                 cribber.unusedPtsToday[HAND] += cribber.unusedPtsThisGame[HAND];
                 cribber.unusedPtsAT[HAND] += cribber.unusedPtsThisGame[HAND];
 
                 // calc winner's pegged points for this game
-                cribber.peggedPtsThisGame = 121 - mystoi(userInput)
-                                                - cribber.handPtsThisGame 
-                                                - cribber.cribPtsThisGame 
-                                                - (cribber.numNibsThisGame * 2);							 
+                cribber.peggedPtsThisGame = 121 - await mystoi(userInput) -
+                                                  cribber.handPtsThisGame -
+                                                  cribber.cribPtsThisGame -
+                                                  (cribber.numNibsThisGame * 2);							 
                 cribber.peggedPtsToday += cribber.peggedPtsThisGame;
                 cribber.peggedPtsAt += cribber.peggedPtsThisGame;
 
                 // record loser's position
                 print(" " + nonCribber.indtAdjstdName + "'s pos:  ");  // nonCribber lost
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                nonCribber.losingPositionToday += mystoi(userInput);
+                nonCribber.losingPositionToday += await mystoi(userInput);
 
                 // use that to calc the winner's winning margin
-                cribber.winMarginsToday.push(121 - mystoi(userInput));
-                cribber.histoWinMarginsAT[121 - mystoi(userInput)]++;
+                cribber.winMarginsToday.push(121 - await mystoi(userInput));
+                cribber.histoWinMarginsAT[121 - await mystoi(userInput)]++;
 
                 // and now calc loser's pegged points for this game
-                nonCribber.peggedPtsThisGame = mystoi(userInput)
-                                                - nonCribber.handPtsThisGame 
-                                                - nonCribber.cribPtsThisGame 
-                                                - (nonCribber.numNibsThisGame * 2);								 
+                nonCribber.peggedPtsThisGame = await mystoi(userInput) -
+                                                nonCribber.handPtsThisGame -
+                                                nonCribber.cribPtsThisGame -
+                                                (nonCribber.numNibsThisGame * 2);								 
                 nonCribber.peggedPtsToday += nonCribber.peggedPtsThisGame;
                 nonCribber.peggedPtsAt += nonCribber.peggedPtsThisGame;
 
@@ -732,12 +735,12 @@
                 print(cribber.indtAdjstdName + "'s crib:  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
                 handleInputFlags(userInput, cribber);
-                cribber.cribPtsThisGame += mystoi(userInput);
-                cribber.histoCribPtsToday[mystoi(userInput)]++;
-                cribber.histoCribPtsAT[mystoi(userInput)]++;
-                cribber.unusedPtsThisGame[CRIB] += mystoi(userInput);
-                cribber.unusedPtsToday[CRIB] += mystoi(userInput);
-                cribber.unusedPtsAT[CRIB] += mystoi(userInput);
+                cribber.cribPtsThisGame += await mystoi(userInput);
+                cribber.histoCribPtsToday[await mystoi(userInput)]++;
+                cribber.histoCribPtsAT[await mystoi(userInput)]++;
+                cribber.unusedPtsThisGame[CRIB] += await mystoi(userInput);
+                cribber.unusedPtsToday[CRIB] += await mystoi(userInput);
+                cribber.unusedPtsAT[CRIB] += await mystoi(userInput);
 
                 return cribber;
             }
@@ -747,32 +750,32 @@
                 printCentered(1, "~ ~ ~  " + cribber.name + " wins!  ~ ~ ~", 3);
                 print("How many points were needed?  ");
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                cribber.unusedPtsThisGame[CRIB] += (ptsInWinningInput - mystoi(userInput) );
+                cribber.unusedPtsThisGame[CRIB] += (ptsInWinningInput - await mystoi(userInput) );
                 cribber.unusedPtsToday[CRIB] += cribber.unusedPtsThisGame[CRIB];
                 cribber.unusedPtsAT[CRIB] += cribber.unusedPtsThisGame[CRIB];
 
                 // calc winner's pegged points for this game
-                cribber.peggedPtsThisGame = 121 - mystoi(userInput)
-                                                - cribber.handPtsThisGame 
-                                                - cribber.cribPtsThisGame
-                                                - (cribber.numNibsThisGame * 2);							 
+                cribber.peggedPtsThisGame = 121 - await mystoi(userInput) -
+                                                  cribber.handPtsThisGame -
+                                                  cribber.cribPtsThisGame -
+                                                  (cribber.numNibsThisGame * 2);							 
                 cribber.peggedPtsToday += cribber.peggedPtsThisGame;
                 cribber.peggedPtsAt += cribber.peggedPtsThisGame;
 
                 // record loser's position
                 print(" " + nonCribber.indtAdjstdName + "'s pos:  ");  // nonCribber lost
                 userInput = await getlineMine();  if (userWantsToCorrectRound)  return null;
-                nonCribber.losingPositionToday += mystoi(userInput);
+                nonCribber.losingPositionToday += await mystoi(userInput);
 
                 // use that to calc the winner's winning margin
-                cribber.winMarginsToday.push(121 - mystoi(userInput));
-                cribber.histoWinMarginsAT[121 - mystoi(userInput)]++;  // check the indexing on this... hmmm.
+                cribber.winMarginsToday.push(121 - await mystoi(userInput));
+                cribber.histoWinMarginsAT[121 - await mystoi(userInput)]++;  // check the indexing on this... hmmm.
 
                 // and now calc loser's pegged points for this game
-                nonCribber.peggedPtsThisGame = mystoi(userInput)
-                                                - nonCribber.handPtsThisGame 
-                                                - nonCribber.cribPtsThisGame 
-                                                - (nonCribber.numNibsThisGame * 2);								 
+                nonCribber.peggedPtsThisGame = await mystoi(userInput) -
+                                                nonCribber.handPtsThisGame - 
+                                                nonCribber.cribPtsThisGame -
+                                                (nonCribber.numNibsThisGame * 2);								 
                 nonCribber.peggedPtsToday += nonCribber.peggedPtsThisGame;
                 nonCribber.peggedPtsAt += nonCribber.peggedPtsThisGame;
 
@@ -804,11 +807,11 @@
         // want it to be somethng like this for ex: 
         // 4.63 this game    5.46 today (33)    4.41 all-time (2034)
             print("\n           crib avg:       ");
-            print(((players[0].cribPtsThisGame + players[1].cribPtsThisGame) * 1.0) / 
-                  (players[0].numHandsThisGame * 1.0) +
+            print(float2digs(((players[0].cribPtsThisGame + players[1].cribPtsThisGame) * 1.0) / 
+                  (players[0].numHandsThisGame * 1.0)) +
                   " this game     " +
-                  combinedCribAverage("today") + " today (" + players[0].numHandsToday + ")     " +
-                  combinedCribAverage("all-time") + " ever (" +
+                  float2digs(combinedCribAverage("today")) + " today (" + players[0].numHandsToday + ")     " +
+                  float2digs(combinedCribAverage("all-time")) + " ever (" +
                   (USE_LEGACY_DATA ? players[0].numHandsAT + players[0].legacyNumHands : 
                                      players[0].numHandsAT) + ")");
         }
@@ -882,10 +885,10 @@
             const strictPeggedPts = p.peggedPtsThisGame - p.unusedPtsThisGame[PEGGED];
             const finPos = strictHandPts + strictCribPts + strictNibsPts + strictPeggedPts;
 
-            const handPercent = (strictHandPts * 100.0) / (finPos * 1.0);
-            const cribPercent = (strictCribPts * 100.0) / (finPos * 1.0);
-            const nibsPercent = (strictNibsPts * 100.0) / (finPos * 1.0);
-            const peggedPercent = (strictPeggedPts * 100.0) / (finPos * 1.0);
+            const handPercent = float0digs((strictHandPts * 100.0) / (finPos * 1.0));
+            const cribPercent = float0digs((strictCribPts * 100.0) / (finPos * 1.0));
+            const nibsPercent = float0digs((strictNibsPts * 100.0) / (finPos * 1.0));
+            const peggedPercent = float0digs((strictPeggedPts * 100.0) / (finPos * 1.0));
 
             print("           " +
                  ((finPos > 99) ? "" : " ") + p.indtAdjstdName + "'s " +
@@ -973,52 +976,52 @@
             if (players[0].winsToday >= players[1].winsToday) {
                 printCentered(1, "Today's champion: " + 
                     ((players[0].winsToday == players[1].winsToday) ? "It's a tie" : players[0].name) + "!", 2);
-                printCentered(0, to_string(players[0].winsToday) + " wins for " + players[0].name + "  vs  " +
-                    to_string(players[1].winsToday) + " wins for " + players[1].name, 4);
+                printCentered(0, players[0].winsToday + " wins for " + players[0].name + "  vs  " +
+                    players[1].winsToday + " wins for " + players[1].name, 4);
             } else {
                 printCentered(1, "Today's champion: " + players[1].name + "!", 2);
-                printCentered(0, to_string(players[1].winsToday) + " wins for " + players[1].name + "  vs  " +
-                    to_string(players[0].winsToday) + " wins for " + players[0].name, 4);
+                printCentered(0, players[1].winsToday + " wins for " + players[1].name + "  vs  " +
+                    players[0].winsToday + " wins for " + players[0].name, 4);
             }
 
             // print macrogame results today
             printCentered(0, "Today's MACRO-game:", 2);
             if (players[0].macrogamePtsToday >= players[1].macrogamePtsToday) {
-                printCentered(0, players[0].name + " had " + to_string(players[0].macrogamePtsToday) + " pts  vs  " +
-                    to_string(players[1].macrogamePtsToday) + " pts for " + players[1].name, 2);
-                printCentered(0, "(" + to_string(players[0].macrogamePtsToday - players[1].macrogamePtsToday) + " pt gain for " + players[0].name + "!)", 4);
+                printCentered(0, players[0].name + " had " + players[0].macrogamePtsToday + " pts  vs  " +
+                    players[1].macrogamePtsToday + " pts for " + players[1].name, 2);
+                printCentered(0, "(" + players[0].macrogamePtsToday - players[1].macrogamePtsToday + " pt gain for " + players[0].name + "!)", 4);
             }
             else {
-                printCentered(0, players[1].name + " had " + to_string(players[1].macrogamePtsToday) + " pts  vs  " +
-                    to_string(players[0].macrogamePtsToday) + " pts for " + players[0].name, 2);
-                printCentered(0, "(" + to_string(players[1].macrogamePtsToday - players[0].macrogamePtsToday) + " pt gain for " + players[1].name + "!)", 4);
+                printCentered(0, players[1].name + " had " + players[1].macrogamePtsToday + " pts  vs  " +
+                    players[0].macrogamePtsToday + " pts for " + players[0].name, 2);
+                printCentered(0, "(" + players[1].macrogamePtsToday - players[0].macrogamePtsToday + " pt gain for " + players[1].name + "!)", 4);
             }
 
             // print number of first crib wins
             printCentered(0, "Today", 2);
-            printCentered(0, players[0].name + " won " + to_string(players[0].numFirstCribsWonToday) +
-                " of their " + to_string(players[0].numFirstCribsToday) + " games where they had first crib.", 1);
-            printCentered(0, players[1].name + " won " + to_string(players[1].numFirstCribsWonToday) +
-                " of their " + to_string(players[1].numFirstCribsToday) + " games where they had first crib.", 2);
+            printCentered(0, players[0].name + " won " + players[0].numFirstCribsWonToday +
+                " of their " + players[0].numFirstCribsToday + " games where they had first crib.", 1);
+            printCentered(0, players[1].name + " won " + players[1].numFirstCribsWonToday +
+                " of their " + players[1].numFirstCribsToday + " games where they had first crib.", 2);
 
             printCentered(0, "All-time", 2);
-            printCentered(0, players[0].name + " has won " + to_string(players[0].numFirstCribsWonAT) +
-                " of their " + to_string(players[0].numFirstCribsAT) + " games where they had first crib.", 1);
-            printCentered(0, players[1].name + " has won " + to_string(players[1].numFirstCribsWonAT) +
-                " of their " + to_string(players[1].numFirstCribsAT) + " games where they had first crib all-time.", 4);
+            printCentered(0, players[0].name + " has won " + players[0].numFirstCribsWonAT +
+                " of their " + players[0].numFirstCribsAT + " games where they had first crib.", 1);
+            printCentered(0, players[1].name + " has won " + players[1].numFirstCribsWonAT +
+                " of their " + players[1].numFirstCribsAT + " games where they had first crib all-time.", 4);
 
             // print macrogame results AT
             printCentered(0, "All-time MACRO-game (for 2023):", 2);
             if (players[0].macrogamePtsAT >= players[1].macrogamePtsAT) {
-                printCentered(0, players[0].name + ": " + to_string(players[0].macrogamePtsAT) + " pts  vs  " +
-                    to_string(players[1].macrogamePtsAT) + " pts for " + players[1].name, 2);
-                printCentered(0, "(" + to_string(players[0].macrogamePtsAT - players[1].macrogamePtsAT) + " pt lead)", 4);
+                printCentered(0, players[0].name + ": " + players[0].macrogamePtsAT + " pts  vs  " +
+                    players[1].macrogamePtsAT + " pts for " + players[1].name, 2);
+                printCentered(0, "(" + players[0].macrogamePtsAT - players[1].macrogamePtsAT + " pt lead)", 4);
                 
             }
             else {
-                printCentered(0, players[1].name + ": " + to_string(players[1].macrogamePtsAT) + " pts  vs  " +
-                    to_string(players[0].macrogamePtsAT) + " pts for " + players[0].name, 2);
-                printCentered(0, "(" + to_string(players[1].macrogamePtsAT - players[0].macrogamePtsAT) + " pt lead)", 4);
+                printCentered(0, players[1].name + ": " + players[1].macrogamePtsAT + " pts  vs  " +
+                    players[0].macrogamePtsAT + " pts for " + players[0].name, 2);
+                printCentered(0, "(" + players[1].macrogamePtsAT - players[0].macrogamePtsAT + " pt lead)", 4);
             }
 
 
@@ -1032,22 +1035,22 @@
             let optionalLegacyLabel = (USE_LEGACY_DATA ? " (since Jan 1 2022): " : ": ");  // string
             printCentered(0, "All-time wins" + optionalLegacyLabel, 2);
             if (allTimeWinsP0 >= allTimeWinsP1)
-                printCentered(0, players[0].name + " has " + to_string(allTimeWinsP0) + " wins  vs  " +
-                    to_string(allTimeWinsP1) + " wins for " + players[1].name, 4);
+                printCentered(0, players[0].name + " has " + allTimeWinsP0 + " wins  vs  " +
+                    allTimeWinsP1 + " wins for " + players[1].name, 4);
             else	
-                printCentered(0, players[1].name + " has " + to_string(allTimeWinsP1) + " wins  vs  " +
-                    to_string(allTimeWinsP0) + " wins for " + players[0].name, 4);
+                printCentered(0, players[1].name + " has " + allTimeWinsP1 + " wins  vs  " +
+                    allTimeWinsP0 + " wins for " + players[0].name, 4);
 
             // print crib averages
             const todayCribAvg = float2digs(combinedCribAverage("today"));
             const alltimeCribAvg = float2digs(combinedCribAverage("all-time"));
         
             printCentered(0, "Today's crib avg:  " + todayCribAvg + " pts  (" + 
-                to_string(players[0].numHandsToday) + " hands)", 2); 
+                players[0].numHandsToday + " hands)", 2); 
             printCentered(0, "All-time crib avg:  " + alltimeCribAvg + " pts  (" +
-                (USE_LEGACY_DATA ? to_string(players[0].numHandsAT + players[0].legacyNumHands) :
-                                   to_string(players[0].numHandsAT)) + " hands)", 4);
-        }  // ^ * dont' think I need to use all those to_string() calls... at all, actually
+                (USE_LEGACY_DATA ? players[0].numHandsAT + players[0].legacyNumHands :
+                                   players[0].numHandsAT) + " hands)", 4);
+        }
 
 
         async function cardIndexOf(card) {  // int (string)
@@ -1649,7 +1652,7 @@
         }
         async function getUserInput() {
             while (! newInputExists)
-                await sleep(1000);
+                await sleep(100);
             newInputExists = false;
             return mostRecentInput;
         }
