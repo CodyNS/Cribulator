@@ -2,6 +2,12 @@
 // But... this still uses pointers. How can I simplify this further for JS, where you don't have pointers?
 // ...probably do some JS experimentation to see what I can do...
 
+// Future ideas?
+// - blank save data file format needs updating to include the b4_cribulator pieces and the 3 new montly histogram pieces
+// - win margin histogram
+// - largest hand and largest crib printout added to end of session screen
+
+
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -10,13 +16,30 @@
 
 using namespace std;
 
+
+// CONSTANTS (most important ones)
+const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";  // save file for current year
+const string SAVE_FILE_LEGACY_NAME = "cribulator_legacy_player_data.txt";  // combined save data for all time before this year
+
+const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
+const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
+const string VAR_PREFIX = "### ";
+const int SCREEN_WIDTH = 140;
+const int SCREEN_WIDTH_NARROW = 45;
+const int MAX_HEIGHT_VERTICAL_HISTO_BAR = 30;
+
+
+
 struct Player {
     string name;
     string indtAdjstdName;
 
-    int legacyWins = 0;
-    int legacyCribSum = 0;  // combined value (Molly + Johnny)
-    int legacyNumHands = 0;
+    // These 4 only have > 0 values in the legacy data file. They're from times when I wasn't tracking more than just these.
+    // Combine them with the rest of this data in the legacy file to get the full legacy totals.
+    int wins_b4_cribulator = 0;
+    int cribSum_b4_cribulator = 0;  // combined value (Molly + Johnny)
+    int numHands_b4_cribulator = 0; // combined value (Molly + Johnny)
+    int macroPts_b4_cribulator = 0;
 
     vector<int> histoCutsForFirstCribAT {vector<int>(13,0)};  // in-struct vector initialization is a bit different...
     vector<int> histoCutsForMyCribAT {vector<int>(13,0)};  // aka starter cards
@@ -72,15 +95,7 @@ struct Player {
 };
 
 
-// CONSTANTS
-const bool USE_LEGACY_DATA = false; // flag that enables/disables the use of legacy crib data
-                                    // aka data from Jan 1 -> 17 before this program was complete
-                                    // and all data was able to be collected.
-const int SCREEN_WIDTH = 120;
-const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";
-const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
-const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
-const string VAR_PREFIX = "### ";
+// CONSTANTS, continued...
 const int HAND = 0; // these 4 used for excess point variable indeces
 const int CRIB = 1;
 const int NIBS = 2;
@@ -114,13 +129,16 @@ string previousInvalidInput = "";
 int previousInvalidInputFix = -1;
 
 // These used to be defined in main() and passed in as parameters, but global scope simplifies the function calls so much.
-// For a private, innocent game tracker like this, I just don't care. It's a worthy trade-off.
-Player molly;
-Player johnny;
+// For a private, innocent game tracker like this, I just don't care: it's a worthy trade-off.
+Player molly; 
+Player johnny; 
 vector<Player*> players = {&molly, &johnny};
 Player mollyBackup;
 Player johnnyBackup;
 vector<Player*> playerBackups = {&mollyBackup, &johnnyBackup};
+Player mollyLegacy;
+Player johnnyLegacy;
+vector<Player*> playersLegacy = {&mollyLegacy, &johnnyLegacy};
 Player* cribber = NULL;
 Player* nonCribber = NULL;   
 Player* cribberBackup = NULL;
@@ -136,8 +154,7 @@ int day = mytime->tm_mday;
 
 
 
-
-// ----- FUNCTION PROTOTYPES -----
+// ----- FUNCTION PROTOTYPES --------------------------------------------------
 void initializeStuff();
 bool userWantsToEndSession(string);
 bool cutToSeeWhoGetsFirstCrib();
@@ -154,15 +171,20 @@ void printEndOfGameStuff();
 void printPointsBreakdownForPlayerThisGame(Player*);
 void resetThisGameDataForPlayers();
 string thisMonthsName();
+string abbrevForMonth(int);
 void printEndOfSessionStuff();
-float combinedCribAverage(string);
+string percentageString(int, int);
+double combinedCribAverage(string);
 void performEndOfSessionTasks();
 int cardIndexOf(string);
 string cardStringForIndex(int);
 int pointValueOf(string);
+vector<int> scaleHistoValuesToFitScreen(vector<int>, int, int, bool, bool);
 void printHistogram(string);
+double calcWeightedAvgWeird(double, int, int, int);
+void printSummaryMessageAtBottomOfVsHisto(bool, bool);
 string multString(int, string);
-float computeMeanFromHisto(vector<int>);
+double computeMeanFromHisto(vector<int>);
 int domainOfHisto(vector<int>);
 int rangeOfHisto(vector<int>);
 vector<int> combinedHistoFrom(vector<vector<int>>);
@@ -170,8 +192,10 @@ bool search(string, string);
 bool search(string, vector<string>);
 Player* determineLoser();
 void printCentered(int, string, int);
+void printCenteredManual(int, string, int, int, int);
 vector<int> parseCommaSeparatedValuesFromString(string);
-void loadATDataFromFile();
+void loadDataForPlayerFromFile(Player*, fstream*);
+void loadSaveDataFromFiles();
 void saveATDataToFile();
 string getlineMine();
 void backupVariables();
@@ -182,18 +206,20 @@ int mystoi(string);
 bool handleStatsRequests(string);
 
 
-
-
+// ----- MAIN -----------------------------------------------------------------
 int main() {
 
+    bool isFirstGame = true;
     string userInput;
     
     initializeStuff();
-    printCentered(3, "* * * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * * *", 2);
+    //printCentered(3, "* * * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * * *", 1);  <-- for a more centered presentation
+    printCenteredManual(3, "* * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * *", 3, 45, 44);
 
     do {  // game loop ------------------------------
         if (!userWantsToCorrect1stCribCut)
-            cout << "New game!\n\n";
+            if ( !isFirstGame)  cout << "\nNew game!\n\n";
+
         if (cutToSeeWhoGetsFirstCrib() == USER_WANTS_TO_END_SESSION)
             break;
         playerWhoHadFirstCrib = cribber;
@@ -288,6 +314,7 @@ int main() {
             resetThisGameDataForPlayers();
         }
 
+        isFirstGame = false;
     } while(!search(userInput, END_SESSION_VARIATIONS) );  // game loop
 
     performEndOfSessionTasks();
@@ -297,20 +324,10 @@ int main() {
 
 
 
-
-
-
-
-
-
-
-
-
-
- // ----- FUNCTION DEFINITIONS -----
+ // ----- FUNCTION DEFINITIONS ------------------------------------------------
 void initializeStuff() {
     cout << setprecision(2) << fixed; // 2 decimal places for output  BLAH: should this be global or in main?
-    loadATDataFromFile(); // load the players' all-time data
+    loadSaveDataFromFiles(); // load the players' all-time data
 }
 
 
@@ -455,9 +472,6 @@ bool handleInputFlags(string userInput, Player* player) {
 }
 
 
-
-
-
 Player* winHandler(string winCondition, int ptsInWinningInput) {
 // Calculates all the necessary crap when user indicates a win
 // returns a pointer to the winning player
@@ -466,7 +480,9 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
                        // so I'll have mind the order in which I calculate stuff...
 
     if (search(winCondition, "nibs win") ){
-        printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
+        // printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);  <--- for a more centered presentation
+        printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, 
+                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;  // user wants to make a correction; no winner rn
         cribber->unusedPtsThisGame[NIBS] += (2 - mystoi(userInput) );
@@ -680,7 +696,9 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
 
 
     else if (search(winCondition, "nonCribber wins via hand") ){
-        printCentered(1, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3);
+        // printCentered(1, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3); <--- for a more centered presentation
+        printCenteredManual(2, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3, 
+                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~").length());
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
         nonCribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
@@ -742,7 +760,10 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
 
 
     else if (search(winCondition, "cribber wins via hand") ){
-        printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
+        // printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);   <-- for a more centered presentation
+        printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, 
+                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
+
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
         cribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
@@ -794,7 +815,9 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
 
 
     else if (search(winCondition, "cribber wins via crib") ){
-        printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
+        // printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);   <-- for a more centered presentation
+        printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, 
+                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
         cribber->unusedPtsThisGame[CRIB] += (ptsInWinningInput - mystoi(userInput) );
@@ -859,9 +882,7 @@ void printEndOfHandStuff() {
          << " this game     "
 
          << combinedCribAverage("today") << " today (" << players[0]->numHandsToday << ")     "
-         << combinedCribAverage("all-time") << " ever (" 
-         << (USE_LEGACY_DATA ? players[0]->numHandsAT + players[0]->legacyNumHands : 
-                               players[0]->numHandsAT) << ")";
+         << combinedCribAverage("year") << " year (" << players[0]->numHandsAT << ")";
 }
 
 
@@ -891,9 +912,42 @@ void updatePlayerDataAfterGame() {
 }
 
 
+// void printEndOfGameStuff() {  
+// // calculate and display the stats you want to at the end of a game:
+//     printCentered(1, "Congratulations " + winner->name + "!", 1);
+//     string winWord;
+//     if (winner->winsToday == 1)
+//         winWord = "1st";
+//     else if (winner->winsToday == 2)
+//         winWord = "2nd";
+//     else if (winner->winsToday == 3)
+//         winWord = "3rd";
+//     else 
+//         winWord = "" + to_string(winner->winsToday) + "th";
+//     printCentered(0, "That's your " + winWord + " win today!", 3);
+
+//     printCentered(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2);
+//     // points breakdown for the winner
+//     printPointsBreakdownForPlayerThisGame(winner);
+//     cout << endl;
+//     // points breakdown for the loser
+//     // will do it, but problem:  loser's unused pts have been added to their 'ThisGame' variables already,
+//     // ... so the numbers won't be correct for them as it stands... how to fix this?
+//     printPointsBreakdownForPlayerThisGame(determineLoser());
+//     cout << endl;
+
+//     // xxx pts (Leader) to yyy pts (Trailer) in today's macro-game thus far...  
+
+
+//     // any average/combined stats of interest?
+
+
+//     cout << endl;
+// }                            // ^---- use this version for a more centered presentation
 void printEndOfGameStuff() {
 // calculate and display the stats you want to at the end of a game:
-    printCentered(1, "Congratulations " + winner->name + "!", 1);
+    printCenteredManual(2, "Congratulations " + winner->name + "!", 1, 
+                        SCREEN_WIDTH_NARROW, string("Congratulations " + winner->name + "!").length());
     string winWord;
     if (winner->winsToday == 1)
         winWord = "1st";
@@ -903,9 +957,11 @@ void printEndOfGameStuff() {
         winWord = "3rd";
     else 
         winWord = "" + to_string(winner->winsToday) + "th";
-    printCentered(0, "That's your " + winWord + " win today!", 3);
+    printCenteredManual(0, "That's your " + winWord + " win today!", 4, 
+                        SCREEN_WIDTH_NARROW, string("That's your " + winWord + " win today!").length());
 
-    printCentered(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2);
+    printCenteredManual(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2, 
+                        SCREEN_WIDTH_NARROW, string("Game " + to_string(players[0]->gamesPlayedToday)).length());
     // points breakdown for the winner
     printPointsBreakdownForPlayerThisGame(winner);
     cout << endl;
@@ -928,7 +984,8 @@ void printEndOfGameStuff() {
 void printPointsBreakdownForPlayerThisGame(Player* p) {
 // BLAH: use printf() for this to simplify the formatting
     cout << setprecision(0) << fixed;
-    const string BD_INDENT = "                                    ";
+    // const string BD_INDENT = "                                    "; <-- for a more centered presentation
+    const string BD_INDENT = "                        ";
 
     int strictHandPts = p->handPtsThisGame - p->unusedPtsThisGame[HAND];
     int strictCribPts = p->cribPtsThisGame - p->unusedPtsThisGame[CRIB];
@@ -936,12 +993,13 @@ void printPointsBreakdownForPlayerThisGame(Player* p) {
     int strictPeggedPts = p->peggedPtsThisGame - p->unusedPtsThisGame[PEGGED];
     int finPos = strictHandPts + strictCribPts + strictNibsPts + strictPeggedPts;
 
-    float handPercent = (strictHandPts * 100.0) / (finPos * 1.0);
-    float cribPercent = (strictCribPts * 100.0) / (finPos * 1.0);
-    float nibsPercent = (strictNibsPts * 100.0) / (finPos * 1.0);
-    float peggedPercent = (strictPeggedPts * 100.0) / (finPos * 1.0);
+    double handPercent = (strictHandPts * 100.0) / (finPos * 1.0);
+    double cribPercent = (strictCribPts * 100.0) / (finPos * 1.0);
+    double nibsPercent = (strictNibsPts * 100.0) / (finPos * 1.0);
+    double peggedPercent = (strictPeggedPts * 100.0) / (finPos * 1.0);
 
-    cout << "           " 
+    // cout << "           "                 <-- for a more centered presentation
+    cout << ""
          << ((finPos > 99) ? "" : " ") << p->indtAdjstdName << "'s " 
          << finPos << " pts:" << endl;
 
@@ -982,19 +1040,19 @@ void resetThisGameDataForPlayers() {
 }
 
 
-float combinedCribAverage(string timeframe) {
+double combinedCribAverage(string timeframe) {
     if (timeframe == "today")
         return computeMeanFromHisto(combinedHistoFrom({players[0]->histoCribPtsToday, players[1]->histoCribPtsToday}));
 
-    else if (timeframe == "all-time" && USE_LEGACY_DATA)
-        return ( (sumOfHistogram(players[0]->histoCribPtsAT) 
-                  + sumOfHistogram(players[1]->histoCribPtsAT)
-                  + players[0]->legacyCribSum ) * 1.0) 
-                / 
-                  ((players[0]->numHandsAT + players[0]->legacyNumHands) * 1.0);
-
-    else if (timeframe == "all-time" && !USE_LEGACY_DATA)
+    else if (timeframe == "year")
         return computeMeanFromHisto(combinedHistoFrom({players[0]->histoCribPtsAT, players[1]->histoCribPtsAT}));
+
+    else if (timeframe == "all-time")
+        return ( (sumOfHistogram(players[0]->histoCribPtsAT) + sumOfHistogram(playersLegacy[0]->histoCribPtsAT)
+                  + sumOfHistogram(players[1]->histoCribPtsAT) + sumOfHistogram(playersLegacy[1]->histoCribPtsAT)
+                  + playersLegacy[0]->cribSum_b4_cribulator ) * 1.0) 
+                / 
+                  ((players[0]->numHandsAT + playersLegacy[0]->numHandsAT + playersLegacy[0]->numHands_b4_cribulator) * 1.0);
 
     else {
         cout << "\n\n\n*** Error: invalid timeframe specified for 'combinedCribAverage()' call ***\n";
@@ -1029,7 +1087,26 @@ string thisMonthsName() {
         case 9:  return "October";
         case 10: return "November";
         case 11: return "December";
-        default: return "uh oh... invalid month number XP";
+        default: return "oops... invalid month number";
+    }
+}
+
+
+string abbrevForMonth(int monthIndex) {
+    switch(monthIndex) {
+        case 0:  return "Jan";
+        case 1:  return "Feb";
+        case 2:  return "Mar";
+        case 3:  return "Apr";
+        case 4:  return "May";
+        case 5:  return "Jun";
+        case 6:  return "Jul";
+        case 7:  return "Aug";
+        case 8:  return "Sep";
+        case 9:  return "Oct";
+        case 10: return "Nov";
+        case 11: return "Dec";
+        default: return "oops...";
     }
 }
 
@@ -1038,18 +1115,18 @@ void printEndOfSessionStuff() {
 // display the stats you want to at the end of the day's session:
     printCentered(2, "__________________________________________________________", 2);
     printCentered(0, "WINS", 1);
-    printCentered(0, "__________________________________________________________", 3);
+    printCentered(0, "__________________________________________________________", 2);
 
     // print today's wins
     if (players[0]->winsToday >= players[1]->winsToday) {
-        printCentered(1, "Today's champion: " + 
+        printCentered(0, "Today's champion: " + 
             ((players[0]->winsToday == players[1]->winsToday) ? "It's a tie" : players[0]->name) + "!", 2);
         printCentered(0, to_string(players[0]->winsToday) + " wins for " + players[0]->name + "  vs  " +
-             to_string(players[1]->winsToday) + " wins for " + players[1]->name, 4);
+             to_string(players[1]->winsToday) + " wins for " + players[1]->name, 3);
     } else {
-        printCentered(1, "Today's champion: " + players[1]->name + "!", 2);
+        printCentered(0, "Today's champion: " + players[1]->name + "!", 2);
         printCentered(0, to_string(players[1]->winsToday) + " wins for " + players[1]->name + "  vs  " +
-             to_string(players[0]->winsToday) + " wins for " + players[0]->name, 4);
+             to_string(players[0]->winsToday) + " wins for " + players[0]->name, 3);
     }
 
 
@@ -1058,61 +1135,48 @@ void printEndOfSessionStuff() {
     int thisMonthWinsP1 = players[1]->winsByMonth[month];
     printCentered(0, "in " + thisMonthsName() + ":", 2);
     if (thisMonthWinsP0 >= thisMonthWinsP1)
-        printCentered(0, players[0]->name + " has " + to_string(thisMonthWinsP0) + " wins  vs  " +
-            to_string(thisMonthWinsP1) + " wins for " + players[1]->name, 4);
+        printCentered(0, players[0]->name + " leads with " + to_string(thisMonthWinsP0) + " wins vs " +
+            to_string(thisMonthWinsP1) + " for " + players[1]->name, 3);
     else    
-        printCentered(0, players[1]->name + " has " + to_string(thisMonthWinsP1) + " wins  vs  " +
-            to_string(thisMonthWinsP0) + " wins for " + players[0]->name, 4);
+        printCentered(0, players[1]->name + " leads with " + to_string(thisMonthWinsP1) + " wins vs " +
+            to_string(thisMonthWinsP0) + " for " + players[0]->name, 3);
 
 
     // print this year's wins
     int allTimeWinsP0 = players[0]->winsAT;
     int allTimeWinsP1 = players[1]->winsAT;
+    int diff = abs(allTimeWinsP0 - allTimeWinsP1);
     printCentered(0, "This Year:", 2);
     if (allTimeWinsP0 >= allTimeWinsP1)
-        printCentered(0, players[0]->name + " has " + to_string(allTimeWinsP0) + " wins  vs  " +
-            to_string(allTimeWinsP1) + " wins for " + players[1]->name, 5);
+        printCentered(0, players[0]->name + " leads with " + to_string(allTimeWinsP0) + " wins vs " +
+            to_string(allTimeWinsP1) + " for " + players[1]->name, 1);
     else    
-        printCentered(0, players[1]->name + " has " + to_string(allTimeWinsP1) + " wins  vs  " +
-            to_string(allTimeWinsP0) + " wins for " + players[0]->name, 5);
+        printCentered(0, players[1]->name + " leads with " + to_string(allTimeWinsP1) + " wins vs " +
+            to_string(allTimeWinsP0) + " for " + players[0]->name, 1);
+
+    if (diff > 0)  printCentered(0, "(" + to_string(diff) + " game lead)" , 2);
+    else  printCentered(0, "(tied!)" , 2);
 
 
-    // Use this if you wanna include the truly-all-time win data, but you'll have to 
-    // modify it: this is mostly a copy of the above section.
-    // // print AT win vs win
-    // int allTimeWinsP0 = players[0]->winsAT;
-    // int allTimeWinsP1 = players[1]->winsAT;
-    // if (USE_LEGACY_DATA) {
-    //     allTimeWinsP0 += players[0]->legacyWins;
-    //     allTimeWinsP1 += players[1]->legacyWins;
-    // }
-    // string optionalLegacyLabel = (USE_LEGACY_DATA ? " (since Jan 1 2022): " : ": ");
-    // printCentered(0, "All-time wins" + optionalLegacyLabel, 2);
-    // if (allTimeWinsP0 >= allTimeWinsP1)
-    //     printCentered(0, players[0]->name + " has " + to_string(allTimeWinsP0) + " wins  vs  " +
-    //         to_string(allTimeWinsP1) + " wins for " + players[1]->name, 4);
-    // else    
-    //     printCentered(0, players[1]->name + " has " + to_string(allTimeWinsP1) + " wins  vs  " +
-    //         to_string(allTimeWinsP0) + " wins for " + players[0]->name, 4);
 
 
 
     printCentered(0, "__________________________________________________________", 2);
     printCentered(0, "MACRO-GAME", 1);
-    printCentered(0, "__________________________________________________________", 3);
+    printCentered(0, "__________________________________________________________", 2);
 
 
     // print macrogame results for today
     printCentered(0, "Today:", 2);
     if (players[0]->macrogamePtsToday >= players[1]->macrogamePtsToday) {
-        printCentered(0, players[0]->name + " had " + to_string(players[0]->macrogamePtsToday) + " pts  vs  " +
-             to_string(players[1]->macrogamePtsToday) + " pts for " + players[1]->name, 2);
-        printCentered(0, "(" + to_string(players[0]->macrogamePtsToday - players[1]->macrogamePtsToday) + " pt gain for " + players[0]->name + "!)", 5);
+        printCentered(0, players[0]->name + " won with " + to_string(players[0]->macrogamePtsToday) + " pts vs " +
+             to_string(players[1]->macrogamePtsToday) + " for " + players[1]->name, 1);
+        printCentered(0, "(" + to_string(players[0]->macrogamePtsToday - players[1]->macrogamePtsToday) + " pt gain for " + players[0]->name + "!)", 3);
     }
     else {
-        printCentered(0, players[1]->name + " had " + to_string(players[1]->macrogamePtsToday) + " pts  vs  " +
-             to_string(players[0]->macrogamePtsToday) + " pts for " + players[0]->name, 2);
-        printCentered(0, "(" + to_string(players[1]->macrogamePtsToday - players[0]->macrogamePtsToday) + " pt gain for " + players[1]->name + "!)", 5);
+        printCentered(0, players[1]->name + " won with " + to_string(players[1]->macrogamePtsToday) + " pts vs " +
+             to_string(players[0]->macrogamePtsToday) + " for " + players[0]->name, 1);
+        printCentered(0, "(" + to_string(players[1]->macrogamePtsToday - players[0]->macrogamePtsToday) + " pt gain for " + players[1]->name + "!)", 3);
     }
 
 
@@ -1121,30 +1185,30 @@ void printEndOfSessionStuff() {
     int macroPtsMnthP1 = players[1]->macrogamePtsByMonth[month];
     printCentered(0, "in " + thisMonthsName() + ":", 2);
     if (macroPtsMnthP0 >= macroPtsMnthP1) {
-        printCentered(0, players[0]->name + ": " + to_string(macroPtsMnthP0) + " pts  vs  " +
-            to_string(macroPtsMnthP1) + " pts for " + players[1]->name, 2);
-        printCentered(0, "(" + to_string(macroPtsMnthP0 - macroPtsMnthP1) + " pt lead)", 5);
+        printCentered(0, players[0]->name + " leads with " + to_string(macroPtsMnthP0) + " pts vs " +
+            to_string(macroPtsMnthP1) + " for " + players[1]->name, 1);
+        printCentered(0, "(" + to_string(macroPtsMnthP0 - macroPtsMnthP1) + " pt lead)", 3);
         
     }
     else {
-        printCentered(0, players[1]->name + ": " + to_string(macroPtsMnthP1) + " pts  vs  " +
-            to_string(macroPtsMnthP0) + " pts for " + players[0]->name, 2);
-        printCentered(0, "(" + to_string(macroPtsMnthP1 - macroPtsMnthP0) + " pt lead)", 5);
+        printCentered(0, players[1]->name + " leads with " + to_string(macroPtsMnthP1) + " pts vs " +
+            to_string(macroPtsMnthP0) + " for " + players[0]->name, 1);
+        printCentered(0, "(" + to_string(macroPtsMnthP1 - macroPtsMnthP0) + " pt lead)", 3);
     }
 
 
     // print macrogame results for this year
     printCentered(0, "This Year:", 2);
     if (players[0]->macrogamePtsAT >= players[1]->macrogamePtsAT) {
-        printCentered(0, players[0]->name + ": " + to_string(players[0]->macrogamePtsAT) + " pts  vs  " +
-            to_string(players[1]->macrogamePtsAT) + " pts for " + players[1]->name, 2);
-        printCentered(0, "(" + to_string(players[0]->macrogamePtsAT - players[1]->macrogamePtsAT) + " pt lead)", 5);
+        printCentered(0, players[0]->name + " leads with " + to_string(players[0]->macrogamePtsAT) + " pts vs " +
+            to_string(players[1]->macrogamePtsAT) + " for " + players[1]->name, 1);
+        printCentered(0, "(" + to_string(players[0]->macrogamePtsAT - players[1]->macrogamePtsAT) + " pt lead)", 2);
         
     }
     else {
-        printCentered(0, players[1]->name + ": " + to_string(players[1]->macrogamePtsAT) + " pts  vs  " +
-            to_string(players[0]->macrogamePtsAT) + " pts for " + players[0]->name, 2);
-        printCentered(0, "(" + to_string(players[1]->macrogamePtsAT - players[0]->macrogamePtsAT) + " pt lead)", 5);
+        printCentered(0, players[1]->name + " leads with " + to_string(players[1]->macrogamePtsAT) + " pts vs " +
+            to_string(players[0]->macrogamePtsAT) + " for " + players[0]->name, 1);
+        printCentered(0, "(" + to_string(players[1]->macrogamePtsAT - players[0]->macrogamePtsAT) + " pt lead)", 2);
     }
 
 
@@ -1173,27 +1237,60 @@ void printEndOfSessionStuff() {
     // print crib averages
     string todayCribAvg = to_string(combinedCribAverage("today"));
     todayCribAvg = todayCribAvg.substr(0, todayCribAvg.size() - 4);  // we get 6 decimal pts by default; cut off 4 of them
+
+    string yearCribAvg = to_string(combinedCribAverage("year"));
+    yearCribAvg = yearCribAvg.substr(0, yearCribAvg.size() - 4);
+
     string alltimeCribAvg = to_string(combinedCribAverage("all-time"));
-    alltimeCribAvg = alltimeCribAvg.substr(0, alltimeCribAvg.size() - 4);
+    alltimeCribAvg = alltimeCribAvg.substr(0, alltimeCribAvg.size() - 4); 
+
     printCentered(0, "Today's crib avg:  " + todayCribAvg + " pts  (" + 
         to_string(players[0]->numHandsToday) + " hands)", 2); 
+
+    printCentered(0, to_string(year) + " crib avg:  " + yearCribAvg + " pts  (" +
+        to_string(players[0]->numHandsAT) + " hands)", 2);
+
     printCentered(0, "All-time crib avg:  " + alltimeCribAvg + " pts  (" +
-        (USE_LEGACY_DATA ? to_string(players[0]->numHandsAT + players[0]->legacyNumHands) :
-                         to_string(players[0]->numHandsAT)) + " hands)", 4);
+        to_string(players[0]->numHandsAT + playersLegacy[0]->numHandsAT + playersLegacy[0]->numHands_b4_cribulator) + 
+        " hands)", 4);
+
 
 
     // print number of first crib wins
     printCentered(0, "First crib advantage today?", 2);
-    printCentered(0, players[0]->name + " won " + to_string(players[0]->numFirstCribsWonToday) +
-        " of their " + to_string(players[0]->numFirstCribsToday) + " games where they had first crib.", 1);
-    printCentered(0, players[1]->name + " won " + to_string(players[1]->numFirstCribsWonToday) +
-        " of their " + to_string(players[1]->numFirstCribsToday) + " games where they had first crib.", 2);
 
-    printCentered(0, "All-time:", 2);
+    printCentered(0, players[0]->name + " won " + to_string(players[0]->numFirstCribsWonToday) +
+        " of " + to_string(players[0]->numFirstCribsToday) + " games when she had first crib" + 
+        percentageString(players[0]->numFirstCribsWonToday, players[0]->numFirstCribsToday), 1);
+
+    printCentered(0, players[1]->name + " won " + to_string(players[1]->numFirstCribsWonToday) +
+        " of " + to_string(players[1]->numFirstCribsToday) + " games when he had first crib" +
+        percentageString(players[1]->numFirstCribsWonToday, players[1]->numFirstCribsToday), 2);
+
+    printCentered(0, "This Year:", 2);
+
     printCentered(0, players[0]->name + " has won " + to_string(players[0]->numFirstCribsWonAT) +
-        " of their " + to_string(players[0]->numFirstCribsAT) + " games where they had first crib.", 1);
+        " of " + to_string(players[0]->numFirstCribsAT) + " games when she had first crib" +
+        percentageString(players[0]->numFirstCribsWonAT, players[0]->numFirstCribsAT), 1);
+
     printCentered(0, players[1]->name + " has won " + to_string(players[1]->numFirstCribsWonAT) +
-        " of their " + to_string(players[1]->numFirstCribsAT) + " games where they had first crib.", 7);
+        " of " + to_string(players[1]->numFirstCribsAT) + " games when he had first crib" +
+        percentageString(players[1]->numFirstCribsWonAT, players[1]->numFirstCribsAT), 7);
+    // ^ could improve this by adding gender/pronoun to player struct so those words aren't hard-coded...
+    // Only necessary if you going to generalize the game for different people. IMPROVE. BLAH.
+}
+
+
+string percentageString(int numerator, int denominator){
+    if (denominator == 0)
+        return ".";
+
+    double num = (double)numerator, den = (double)denominator;
+    double quotient = num / den;
+    double percentage = quotient * 100.0;
+    string percentageStr = to_string(percentage);
+    percentageStr = percentageStr.substr(0, percentageStr.find(".") + 2);  // gives 1 decimal place
+    return "  (" + percentageStr + "%)";
 }
 
 
@@ -1221,7 +1318,9 @@ int cardIndexOf(string card) {
     if (search(card, "a"))  return 0;
     if (search(card, "A"))  return 0;
 
-    printCentered(1, "Error: '" + card + "' is not a valid card", 2);
+    // printCentered(1, "Error: '" + card + "' is not a valid card", 2);  <-- for a more centered presentation
+    printCenteredManual(1, "Error: '" + card + "' is not a valid card", 2, 
+                        SCREEN_WIDTH_NARROW, string("Error: '" + card + "' is not a valid card").length());
     cout << "What card did you mean?  ";
     string secondTry = getlineMine();
     return cardIndexOf(secondTry);
@@ -1244,7 +1343,8 @@ string cardStringForIndex(int cardIndex) {
     if (1  == cardIndex)  return "2";
     if (0  == cardIndex)  return "A";
     
-    printCentered(2, "Error: '" + to_string(cardIndex) + "' is not a valid card index", 2);
+    // printCentered(2, "Error: '" + to_string(cardIndex) + "' is not a valid card index", 2);  <-- for a more centered presentation
+    cout << "\n Error: '" + to_string(cardIndex) + "' is not a valid card index\n\n";
     cout << "Exiting program...\n\n\n";
     exit(1);
 }
@@ -1270,7 +1370,7 @@ int pointValueOf(string userInput) {
     if (search(userInput, "14")) return 14;
     if (search(userInput, "13")) return 13;
     if (search(userInput, "12")) return 12;
-    if (search(userInput, "11")) return 11; 
+    if (search(userInput, "11")) return 11;
     if (search(userInput, "10")) return 10;
     if (search(userInput, "9"))  return 9;
     if (search(userInput, "8"))  return 8;
@@ -1283,56 +1383,117 @@ int pointValueOf(string userInput) {
     if (search(userInput, "1"))  return 1;
     if (search(userInput, "0"))  return 0;
 
-    printCentered(2, "Error: '" + userInput + "' is not a possible score", 2);
-    cout << "  Re-enter value:  ";
+    // printCentered(2, "Error: '" + userInput + "' is not a possible score", 2);  <-- for a more centered presentation
+    cout << "\n\n Error: '" + userInput + "' is not a possible score\n\n";
+    cout << "   Re-enter value:  ";
     string secondTry = getlineMine();
     return pointValueOf(secondTry);
 }
 
 
+vector<int> scaleHistoValuesToFitScreen(vector<int> histo, int domain, int range, bool isHorizontal, bool isForVsGraph) {
+    int marginNeededForLabels = isForVsGraph ? 20 : 14;
+    int sizeBiggestBar = isHorizontal ? (SCREEN_WIDTH - marginNeededForLabels) : MAX_HEIGHT_VERTICAL_HISTO_BAR;
+    for (int i = 0; i <= domain; i++)
+        histo[i] = (int)((double)histo[i] / (double)range * (double)sizeBiggestBar);
+    return histo;
+}
+
+
+double calcWeightedAvgWeird(double avg1, int size1, int additionalSum, int size2) {
+    return ((avg1 * (size1 * 1.0)) + (additionalSum * 1.0)) / ((size1 + size2) * 1.0);
+}
+
+
 void printHistogram(string input) {
 // BLAH REFACTOR this: there's tons of repetition here. Could just declare a struct in 
-// here and then pass a pointer to an instance of that in to a helper function that
+// here and then pass a pointer to an instance of that into a helper function that
 // calculates all that stuff in each case.
     vector<string> mollyVariations      = {"mo", "M"};  // default is combined
     vector<string> johnnyVariations     = {"j", "J"};
+    vector<string> winsVsVariations     = {"win"};
+    vector<string> macrosVsVariations   = {"mac"};
     vector<string> handVariations       = {"han"};  // default is crib
-    vector<string> todayVariations      = {"tod", "td", "TD", "Tod"};  // default is all-time
+    vector<string> todayVariations      = {"tod", "td", "TD", "Tod"};  // default is this year
+    vector<string> alltimeVariations    = {"all"};
     vector<string> thickVariations      = {"th", "wi", "bi", "fat", "chub"};  // default is single bar width
     vector<string> totalsVariations     = {"am", "nu", "#", "tot"};  // default doesn't show totals
     vector<string> horizontalVariations = {"hor"};  // default is vertical presentation
     vector<int> histo;
+    vector<int> histoScaled;
+    vector<int> histo2 = {};
+    vector<int> histo2Scaled = {};
     int domain = 0;  // highest point total achieved in the histogram(s) of interest
     int range = 0;  // highest value found throughout the domain of the histogram(s) of interest
     int extraIndent = 0;
+    bool winsVsHisto = search(input, winsVsVariations);
+    bool macrosVsHisto = search(input, macrosVsVariations);
     bool handHisto = search(input, handVariations);
-    bool forToday = search(input, todayVariations);
     bool showMolly = search(input, mollyVariations);
     bool showJohnny = search(input, johnnyVariations);
+    bool forToday = search(input, todayVariations);
+    bool forAllTime = search(input, alltimeVariations);
     bool presentHorizontally = search(input, horizontalVariations);
     bool useThickBars = search(input, thickVariations);
-    bool showAmounts = search(input, totalsVariations);
-    string barChar = !presentHorizontally ? "█": "■";// useThickBars ? "█": "■";
-    string headDec = "- - - - - - -";  // header decoration
+    bool haveToCalcAllTimeCombinedCribAvg = false;
+    //bool showAmounts = search(input, totalsVariations);
+    string barChar = presentHorizontally ? "■" : "█"; // useThickBars ? "█": "■";
+    string barCharMolly = "█";
+    string barCharJohnny = "▒";
+    string barCharFractional = presentHorizontally ? "▪" : "▄";
+    //string headDec = presentHorizontally ? "-----------" : "";  // header decoration
+    string headDec = "----------------";
     string header;
 
-    cout << "\n\n\n";   
-    if (showMolly) {
+    if (winsVsHisto || macrosVsHisto) {  // these two are a bit different 
+        if (winsVsHisto) {
+            if (forAllTime) {
+                histo  = combinedHistoFrom({molly.winsByMonth, mollyLegacy.winsByMonth});
+                histo2 = combinedHistoFrom({johnny.winsByMonth, johnnyLegacy.winsByMonth});
+                header = "Wins by Month (since Jan 1, 2024)";
+            }
+            else {  // this year
+                histo  = molly.winsByMonth;
+                histo2 = johnny.winsByMonth;
+                header = "Wins by Month (" + to_string(year) + ")";
+            }
+            
+        }
+        else {  // macrosVsHisto
+            if (forAllTime) {
+                histo  = combinedHistoFrom({molly.macrogamePtsByMonth, mollyLegacy.macrogamePtsByMonth});
+                histo2 = combinedHistoFrom({johnny.macrogamePtsByMonth, johnnyLegacy.macrogamePtsByMonth});
+                header = "MACRO-GAME points by month (since Jan 1, 2024)";
+            }
+            else {  // this year
+                histo  = molly.macrogamePtsByMonth;
+                histo2 = johnny.macrogamePtsByMonth;
+                header = "MACRO-GAME points by month (" + to_string(year) + ")";
+            }
+        }
+    }
+    else if (showMolly) {
         if (handHisto){
             if (forToday){
                 histo = molly.histoHandPtsToday;
-                header = "Molly's hands today";
-            } else {
+                header = "Molly's hands, today (" + to_string(molly.numHandsToday) + ")";
+            } else if (forAllTime) {
+                histo = combinedHistoFrom({molly.histoHandPtsAT, mollyLegacy.histoHandPtsAT});
+                header = "Molly's hands, all-time (" + to_string(molly.numHandsAT + mollyLegacy.numHandsAT) + ")";
+            } else {  // default: this year
                 histo = molly.histoHandPtsAT;
-                header = "Molly's hands (all-time)";
+                header = "Molly's hands in " + to_string(year) + " (" + to_string(molly.numHandsAT) + ")";
             }
-        } else { // default is crib histo
+        } else { // default: data for cribs
             if (forToday){
                 histo = molly.histoCribPtsToday;
-                header = "Molly's cribs today";
-            } else {
+                header = "Molly's cribs today (" + to_string(molly.numCribsToday) + ")";
+            } else if (forAllTime) {
+                histo = combinedHistoFrom({molly.histoCribPtsAT, mollyLegacy.histoCribPtsAT});
+                header = "Molly's cribs, all-time (" + to_string(molly.numCribsAT + mollyLegacy.numCribsAT) + ")";
+            } else {  // this year
                 histo = molly.histoCribPtsAT;
-                header = "Molly's cribs (all-time)";
+                header = "Molly's cribs in " + to_string(year) + " (" + to_string(molly.numCribsAT) + ")";
             }
         }
     }
@@ -1340,18 +1501,24 @@ void printHistogram(string input) {
         if (handHisto){
             if (forToday){
                 histo = johnny.histoHandPtsToday;
-                header = "Johnny's hands today";
-            } else {
+                header = "Johnny's hands, today (" + to_string(johnny.numHandsToday) + ")";
+            } else if (forAllTime) {
+                histo = combinedHistoFrom({johnny.histoHandPtsAT, johnnyLegacy.histoHandPtsAT});
+                header = "Johnny's hands, all-time (" + to_string(johnny.numHandsAT + johnnyLegacy.numHandsAT) + ")";
+            } else {  // default: this year
                 histo = johnny.histoHandPtsAT;
-                header = "Johnny's hands (all-time)";
+                header = "Johnny's hands in " + to_string(year) + " (" + to_string(johnny.numHandsAT) + ")";
             }
-        } else { // default is crib histo
+        } else { // default: data for cribs
             if (forToday){
                 histo = johnny.histoCribPtsToday;
-                header = "Johnny's cribs today";
-            } else {
+                header = "Johnny's cribs today (" + to_string(johnny.numCribsToday) + ")";
+            } else if (forAllTime) {
+                histo = combinedHistoFrom({johnny.histoCribPtsAT, johnnyLegacy.histoCribPtsAT});
+                header = "Johnny's cribs, all-time (" + to_string(johnny.numCribsAT + johnnyLegacy.numCribsAT) + ")";
+            } else {  // this year
                 histo = johnny.histoCribPtsAT;
-                header = "Johnny's cribs (all-time)";
+                header = "Johnny's cribs in " + to_string(year) + " (" + to_string(johnny.numCribsAT) + ")";
             }
         }
     }
@@ -1359,62 +1526,168 @@ void printHistogram(string input) {
         if (handHisto){
             if (forToday){
                 histo = combinedHistoFrom({molly.histoHandPtsToday, johnny.histoHandPtsToday});
-                header = "(Combined) today's hands";
-            } else {
+                header = "Today's hands (" + to_string(molly.numHandsToday) + ")";
+            } else if (forAllTime) {
+                histo = combinedHistoFrom({
+                            combinedHistoFrom({molly.histoHandPtsAT, mollyLegacy.histoHandPtsAT}),
+                            combinedHistoFrom({johnny.histoHandPtsAT, johnnyLegacy.histoHandPtsAT})
+                        });
+                header = "Hands, all-time (" + 
+                         to_string(molly.numHandsAT + mollyLegacy.numHandsAT + mollyLegacy.numHands_b4_cribulator) + ")";
+            } else {  // this year
                 histo = combinedHistoFrom({molly.histoHandPtsAT, johnny.histoHandPtsAT});
-                header = "(Combined) hands breakdown (all-time)";
+                header = "Hands in " + to_string(year) + " (" + to_string(molly.numHandsAT) + ")";
             }
-        } else {  // crib histos (combined)
+        } else {  // default: data for cribs
             if (forToday){
                 histo = combinedHistoFrom({molly.histoCribPtsToday, johnny.histoCribPtsToday});
-                header = "(Combined) today's cribs";
-            } else {
+                header = "Today's cribs (" + to_string(molly.numHandsToday) + ")";
+            } else if (forAllTime) {
+                histo = combinedHistoFrom({
+                            combinedHistoFrom({molly.histoCribPtsAT, mollyLegacy.histoCribPtsAT}),
+                            combinedHistoFrom({johnny.histoCribPtsAT, johnnyLegacy.histoCribPtsAT})
+                        });
+                header = "Cribs, all-time (" + 
+                         to_string(molly.numHandsAT + mollyLegacy.numHandsAT + mollyLegacy.numHands_b4_cribulator) + ")";
+                haveToCalcAllTimeCombinedCribAvg = true;
+            } else {  // this year
                 histo = combinedHistoFrom({molly.histoCribPtsAT, johnny.histoCribPtsAT});
-                header = "(Combined) crib breakdown (all-time)";
+                header = "Cribs in " + to_string(year) + " (" + to_string(molly.numHandsAT) + ")";
             }
         }
     }
 
     domain = domainOfHisto(histo);
     range = rangeOfHisto(histo);
+    if ( ! histo2.empty()) {  // when printing a WinsVs or MacrosVs graph...
+        range = max(range, rangeOfHisto(histo2));
+        histo2Scaled = scaleHistoValuesToFitScreen(histo2, domain, range, presentHorizontally, true);
+    }
+    histoScaled = scaleHistoValuesToFitScreen(histo, domain, range, presentHorizontally, !histo2.empty() );
+
     if (domain < 10)        extraIndent += 1;
     else if (useThickBars)  extraIndent += 2;
 
-    printCentered(0, headDec + "  " + header + "  " + headDec, 3);
+    
 
-    if (presentHorizontally) {
-        for (int i = 0; i <= domain; i++) {         
-            if (useThickBars)  cout << "\n     " << multString(histo[i], barChar) << endl;
-            cout << (i < 10 ? "  " : " ") << i << "  ";
-            cout << multString(histo[i], barChar) << (showAmounts && histo[i] > 0 ? " " + to_string(histo[i]) : "") << endl;
+    // Similar code to what's below it, but different enough that I'm just going to duplicate the code and make the needed tweaks to it instead of making some uber-complicated combined code. Simpler for me now, initially. Harder to maintain in the future? Maybe. Maybe not. Printing highly formatted output like this is always going to be messy. I'm not going to nitpick.
+    if (winsVsHisto || macrosVsHisto) {
+        printCentered(5, headDec + "  " + header + "  " + headDec, 2);
+        if (presentHorizontally) {
+            printCenteredManual(0, multString(3, barCharMolly)  + " = Molly  (top bar)", 1, 140, 24);
+            printCenteredManual(0, multString(3, barCharJohnny) + " = Johnny (bottom bar)", 4, 140, 24);
+            for (int month = 0; month <= domain; month++) { // BLAH should either make it 1 to 12 or 'Jan' to 'Dec'
+                string bar = "", bar2 = "";
+                if (histo[month] > 0)
+                    bar = histoScaled[month] > 0 ? multString(histoScaled[month], barCharMolly) : barCharMolly;
+                if (histo2[month] > 0)
+                    bar2 = histo2Scaled[month] > 0 ? multString(histo2Scaled[month], barCharJohnny) : barCharJohnny;
+                cout << " " << abbrevForMonth(month) << "  ";
+                cout << bar  << " " << to_string(histo[month])  << "  \n";
+                cout << "      " << bar2 << " " << to_string(histo2[month]) << "  \n\n\n";
+            }
+        } else {  // present it vertically
+            // printCenteredManual(0, multString(3, barCharMolly)  + " = Molly  (left bar)", 1, 140, 24);
+            // printCenteredManual(0, multString(3, barCharJohnny) + " = Johnny (right bar)", 5, 140, 24);
+            printCenteredManual(0, "Molly " + multString(3, barCharMolly) + "  " + multString(3, barCharJohnny) + " Johnny", 5, 140, 22);
+            const string INDENT = string((SCREEN_WIDTH - (11*(domain+1)))/2 + 2, ' ');
+
+            // top scale ------------------------------------------------------
+            // cout << INDENT;  
+            // for (int month = 0; month <= domain; month++)
+            //     cout << "  " << abbrevForMonth(month) + "      ";
+            // printCentered(1, string(11*(domain+1), '-'), 2);
+
+            // the bars -------------------------------------------------------
+            for (int freq = MAX_HEIGHT_VERTICAL_HISTO_BAR+1; freq > 0; freq--) {  // +1 to fit the number ontop of the bar
+                cout << INDENT;
+                for (int month = 0; month <= domain; month++) {
+                    // Molly
+                    if (freq == 1 && histo[month] > 0 && histoScaled[month] == 0)  // tiny, fractional bar
+                        printf("%-4s", multString(3, barCharMolly).c_str());  // used to use 'barCharFractional', but there's not equivalent for Johnny's color
+                    else if (histoScaled[month] == freq-1) // time to print the number
+                        printf("%-4d", histo[month]);
+                    else 
+                        cout << (histoScaled[month] >= freq ? multString(3, barCharMolly) + " " : "    ");
+
+                    // Johnny
+                    if (freq == 1 && histo2[month] > 0 && histo2Scaled[month] == 0) // tiny, fractional bar
+                        printf("%-7s", multString(3, barCharJohnny).c_str());
+                    else if (histo2Scaled[month] == freq-1) // time to print the number
+                        printf("%-7d", histo2[month]);
+                    else 
+                        cout << (histo2Scaled[month] >= freq ? multString(3, barCharJohnny) + "    " : "       ");
+                }
+                cout << endl;
+            }
+
+            // bottom scale ---------------------------------------------------
+            printCentered(0, string(11*(domain+1), '-'), 1);
+            
+            // cout << INDENT;
+            // for (int month = 0; month <= domain; month++)
+            //     cout << " M   J     ";
+
+            cout << INDENT;
+            for (int month = 0; month <= domain; month++)
+                cout << "  " << abbrevForMonth(month) + "      ";
+            cout << "\n\n\n"; // for consistency with horizontal presentations
         }
-    } else {  // present vertically
+
+        // vs total printout at very bottom -----------------------------------
+        printSummaryMessageAtBottomOfVsHisto(winsVsHisto, forAllTime); // don't need to pass in macrosVsHisto; can tell without it
+
+        cout << multString(7, "\n");
+        return;
+    }
+
+
+
+    // ----- not a vs histogram but rather a Crib or Hand histogram...
+    if (presentHorizontally) {
+        printCentered(5, headDec + "  " + header + "  " + headDec, 4);
+        for (int ptVal = 0; ptVal <= domain; ptVal++) {
+            string bar = "";
+            if (histo[ptVal] > 0)
+                bar = histoScaled[ptVal] > 0 ? multString(histoScaled[ptVal], barChar) : barChar; // : barCharFractional; <-- shows smaller one for 0 < x < 1 scaled value (changed this to normal one because it looks cleaner)
+
+            if (useThickBars)  cout << "\n      " << bar << endl;
+            cout << (ptVal < 10 ? "   " : "  ") << ptVal << "  ";
+            // cout << bar << (showAmounts && histo[ptVal] > 0 ? " " + to_string(histo[ptVal]) : "") << endl; // make showing the totals optional
+            cout << bar << (histo[ptVal] > 0 ? " " + to_string(histo[ptVal]) : "") << endl;
+        }
+
+    } else {  // present it vertically
+        printCentered(5, headDec + "  " + header + "  " + headDec, 3);
         const string INDENT = useThickBars ? string((SCREEN_WIDTH-(4 * domain+1))/2, ' ') : string((SCREEN_WIDTH-(3 * domain+1))/2, ' ');
 
-        cout << INDENT;  // top scale
+        // top scale ----------------------------------------------------------
+        cout << INDENT;
         for (int ptVal = 0; ptVal <= domain; ptVal++) {
             if (useThickBars)
                 cout << (ptVal < 10 ? to_string(ptVal) + "   " : to_string(ptVal) + "  ");
             else
                 cout << (ptVal < 10 ? to_string(ptVal) + "  " : to_string(ptVal) + " ");
         }
-
         printCentered(1, (useThickBars ?  string(4*domain + 4 + extraIndent, '-') : string(3*domain + 4 + extraIndent, '-')), 2);
 
-
-        for (int freq = range; freq > 0; freq--) {  // the bars
+        // the bars -----------------------------------------------------------
+        for (int freq = MAX_HEIGHT_VERTICAL_HISTO_BAR; freq > 0; freq--) {
             cout << INDENT;
             for (int ptVal = 0; ptVal <= domain; ptVal++) {
-                if (useThickBars)
-                    cout << (histo[ptVal] >= freq ? barChar + barChar + "  " : "    ");
-                else 
-                    cout << (histo[ptVal] >= freq ? barChar + barChar + " " : "   ");
+                if (freq == 1 && histo[ptVal] > 0 && histoScaled[ptVal] == 0)
+                    cout << barCharFractional + barCharFractional + (useThickBars ? "  " : " ");
+                else {
+                    if (useThickBars)
+                        cout << (histoScaled[ptVal] >= freq ? barChar + barChar + "  " : "    ");
+                    else 
+                        cout << (histoScaled[ptVal] >= freq ? barChar + barChar + " " : "   ");
+                }  
             }
             cout << endl;
         }
 
-
-        // bottom scale
+        // bottom scale -------------------------------------------------------
         printCentered(0, (useThickBars ?  string(4*domain + 4 + extraIndent, '-') : string(3*domain + 4 + extraIndent, '-')), 2);
         cout << INDENT;
         for (int ptVal = 0; ptVal <= domain; ptVal++) {
@@ -1424,9 +1697,76 @@ void printHistogram(string input) {
                 cout << (ptVal < 10 ? to_string(ptVal) + "  " : to_string(ptVal) + " ");
         }
     }
-    string histoMean = to_string(computeMeanFromHisto(histo));
-    histoMean = histoMean.substr(0, histoMean.size() - 4);  // to only show 2 decimal places
-    printCentered(3, "Average:  " + histoMean + " pts" + (forToday ? "" : "  (for 2023)"), 4);
+    double avg = haveToCalcAllTimeCombinedCribAvg ? combinedCribAverage("all-time") : computeMeanFromHisto(histo);
+    string avgStr = to_string(avg);
+    avgStr = avgStr.substr(0, avgStr.size() - 4);  // to only show 2 decimal places
+    printCentered((presentHorizontally ? 2 : 3), "Average:  " + avgStr + " pts", 7);
+}
+
+
+void printSummaryMessageAtBottomOfVsHisto(bool winsVsHisto, bool forAllTime) {
+// Prints summary msg for bottom of winsVs histogram if winsVsHisto is true,
+// otherwise prints that msg for the macrosVs histogram.
+// Prints it for all-time if forAllTime is true, otherwise for just the current year.
+    int diff = -1;
+    string msg;
+
+    if (winsVsHisto) {
+        if (forAllTime) {
+            int allWinsMolly = molly.winsAT + mollyLegacy.winsAT + mollyLegacy.wins_b4_cribulator;
+            int allWinsJohnny = johnny.winsAT + johnnyLegacy.winsAT + johnnyLegacy.wins_b4_cribulator;
+            diff = abs(allWinsMolly - allWinsJohnny);
+
+            if (allWinsMolly > allWinsJohnny)
+                msg = "Molly leads in all-time wins with " + to_string(allWinsMolly) + " vs " + to_string(allWinsJohnny) + " for Johnny";
+            else if (allWinsJohnny > allWinsMolly)
+                msg = "Johnny leads in all-time wins with " + to_string(allWinsJohnny) + " vs " + to_string(allWinsMolly) + " for Molly";
+            else  // tied!
+                msg = "Remarkably, it is currently tied: Molly and Johnny both have " + to_string(allWinsMolly) + " wins all-time!";
+        }
+        else {  // for this year (default)
+            int yearWinsMolly = molly.winsAT;
+            int yearWinsJohnny = johnny.winsAT;
+            diff = abs(yearWinsMolly - yearWinsJohnny);
+
+            if (yearWinsMolly > yearWinsJohnny)
+                msg = "Molly currently leads in " + to_string(year) + " with " + to_string(yearWinsMolly) + " wins vs " + to_string(yearWinsJohnny) + " for Johnny";
+            else if (yearWinsJohnny > yearWinsMolly)
+                msg = "Johnny currently leads in " + to_string(year) + " with " + to_string(yearWinsJohnny) + " wins vs " + to_string(yearWinsMolly) + " for Molly";
+            else  // tie
+                msg = "It's currently a tie: Molly and Johnny both have " + to_string(yearWinsMolly) + " wins this year!";
+        }
+    }
+
+    else {  // msg is for the macrosVs histogram
+        if (forAllTime) {
+            int allMacroPtsMolly  = molly.macrogamePtsAT  + mollyLegacy.macrogamePtsAT  + mollyLegacy.macroPts_b4_cribulator;
+            int allMacroPtsJohnny = johnny.macrogamePtsAT + johnnyLegacy.macrogamePtsAT + johnnyLegacy.macroPts_b4_cribulator;
+            diff = abs(allMacroPtsMolly - allMacroPtsJohnny);
+
+            if (allMacroPtsMolly > allMacroPtsJohnny)
+                msg = "Molly leads the all-time MACRO-GAME with " + to_string(allMacroPtsMolly) + " pts vs " + to_string(allMacroPtsJohnny) + " for Johnny";
+            else if (allMacroPtsJohnny > allMacroPtsMolly)
+                msg = "Johnny leads the all-time MACRO-GAME with " + to_string(allMacroPtsJohnny) + " pts vs " + to_string(allMacroPtsMolly) + " for Molly";
+            else  // tied!
+                msg = "Unbelievable! The all-time MACRO-GAME is currently tied! Molly and Johnny both have " + to_string(allMacroPtsMolly) + " points!";
+        }
+        else {  // for this year (default)
+            int yearMacroPtsMolly = molly.macrogamePtsAT;
+            int yearMacroPtsJohnny = johnny.macrogamePtsAT;
+            diff = abs(yearMacroPtsMolly - yearMacroPtsJohnny);
+
+            if (yearMacroPtsMolly > yearMacroPtsJohnny)
+                msg = "Molly currently leads this year's MACRO-GAME with " + to_string(yearMacroPtsMolly) + " pts vs " + to_string(yearMacroPtsJohnny) + " for Johnny";
+            else if (yearMacroPtsJohnny > yearMacroPtsMolly)
+                msg = "Johnny currently leads this year's MACRO-GAME with " + to_string(yearMacroPtsJohnny) + " pts vs " + to_string(yearMacroPtsMolly) + " for Molly";
+            else  // tie
+                msg = "Wow! This year's MACRO-GAME is currently tied! Molly and Johnny both have " + to_string(yearMacroPtsMolly) + " points in " + to_string(year) + ".";
+        }
+    }
+
+    printCentered(2, msg, 1);
+    if (diff > 0)  printCentered(1, "(" + to_string(diff) + " " + (winsVsHisto ? "game" : "pt") + " lead)", 1);
 }
 
 
@@ -1438,7 +1778,7 @@ string multString(int multiple, string st) {
 }
 
 
-float computeMeanFromHisto(vector<int> histo) {
+double computeMeanFromHisto(vector<int> histo) {
     int numHands = 0;
     int sumPts = 0;
     for (int i = 0; i < histo.size(); i++) {
@@ -1451,17 +1791,16 @@ float computeMeanFromHisto(vector<int> histo) {
 
 int domainOfHisto(vector<int> histo) {
 // returns the upper bound of the histograms' UTILIZED domain (aka: the highest score achieved)
-    int highest = 0;
-    for (int i = 0; i < histo.size(); i++) {
-        if (histo[i] > 0 && i > highest)
-            highest = i;
-    }
-    return highest;
+    for (int i = histo.size()-1; i >= 0; i--)
+        if (histo[i] != 0)
+            return i;
+
+    return 0;
 }
 
 
 int rangeOfHisto(vector<int> histo) {
-// returns the biggest frequency found in the histogram
+// returns the biggest value in the histogram
     int biggest = 0;
     for (int i = 0; i < histo.size(); i++) {
         if (histo[i] > biggest)
@@ -1514,169 +1853,191 @@ void printCentered(int numNewLinesBefore, string message, int numNewLinesAfter) 
          << string((SCREEN_WIDTH - message.length())/2, ' ') << message 
          << string(numNewLinesAfter, '\n');
 }
+void printCenteredManual(int numNewLinesBefore, string message, int numNewLinesAfter, int screenWidth, int messageLength) {
+// Had to make this because it seems C++'s string .length() function doesn't count certain unicode characters. Ok then.
+    cout << string(numNewLinesBefore, '\n') 
+         << string((screenWidth - messageLength)/2, ' ') << message 
+         << string(numNewLinesAfter, '\n');
+}
 
 
-void loadATDataFromFile() {
+void loadSaveDataFromFiles() {
+// Wrote this a few years ago. It's more convoluted than it needs to be....
+// It works though, so I'm not changing it.
     cout << "\nLoading player save data . . .  ";
     fstream saveFile;
-    saveFile.open(BLANK_SAVE_FILE_INPUT_NAME, ios::in);  // use blank test data if it's present
-    if(!saveFile.is_open()){
-        saveFile.open(SAVE_FILE_NAME, ios::in);  // otherwise use the real data
-        if(!saveFile.is_open()){
-            cout << "\n\n*** Error in opening '" << SAVE_FILE_NAME << "' ***\n\n"
+    fstream saveFileLegacy;
+    saveFile.open(BLANK_SAVE_FILE_INPUT_NAME, ios::in);  // use blank test data if it's present (not common)
+
+    if (!saveFile.is_open()){  // otherwise use the actual save data (expected)
+        saveFile.open(SAVE_FILE_NAME, ios::in);
+        saveFileLegacy.open(SAVE_FILE_LEGACY_NAME, ios::in);  // + the legacy data
+        if (!saveFile.is_open() || !saveFileLegacy.is_open() ){
+            cout << "\n\n*** Error in opening '" << SAVE_FILE_NAME << "' or '" << SAVE_FILE_LEGACY_NAME
+                 << "' ***\n\n"
                  << "Exiting program...\n\n\n";
             exit(1);
         }
+        for (Player* p : playersLegacy)
+            loadDataForPlayerFromFile(p, &saveFileLegacy);
+        saveFileLegacy.close();
     } else  usingBlankSaveData = true;
 
+    for (Player* p : players)
+        loadDataForPlayerFromFile(p, &saveFile);
+    saveFile.close();
+ 
+    cout << (usingBlankSaveData ? "BLANK TEST DATA LOADED" : "success :)") << endl;
+}
+
+
+void loadDataForPlayerFromFile(Player* p, fstream* saveFile){
     string line;
-    for (Player* p : players) {
-         while(getline(saveFile, line)) {
-            if (line == "")
-                continue;
+    while(getline(*saveFile, line)) {
+        if (line == "")
+            continue;
+        
+        if (line == VAR_PREFIX + "name") {
+            getline(*saveFile, line);
+            p->name = line;
+        }
+        else if (line == VAR_PREFIX + "indtAdjstdName"){
+            getline(*saveFile, line);
+            p->indtAdjstdName = line;
+        }
+        else if (line == VAR_PREFIX + "wins_b4_cribulator"){
+            getline(*saveFile, line);
+            p->wins_b4_cribulator = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "cribSum_b4_cribulator"){
+            getline(*saveFile, line);
+            p->cribSum_b4_cribulator = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "numHands_b4_cribulator"){
+            getline(*saveFile, line);
+            p->numHands_b4_cribulator = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "macroPts_b4_cribulator"){
+            getline(*saveFile, line);
+            p->macroPts_b4_cribulator = stoi(line);
+        }
             
-            if (line == VAR_PREFIX + "name") {
-                getline(saveFile, line);
-                p->name = line;
+        else if (line == VAR_PREFIX + "histoCutsForFirstCribAT") {
+            for (int i = 0; i < 13; i++) {
+                getline(*saveFile, line);
+                p->histoCutsForFirstCribAT[i] = stoi(line);
             }
-            else if (line == VAR_PREFIX + "indtAdjstdName"){
-                getline(saveFile, line);
-                p->indtAdjstdName = line;
+        }
+        else if (line == VAR_PREFIX + "histoCutsForMyCribAT") {
+            for (int i = 0; i < 13; i++) {
+                getline(*saveFile, line);
+                p->histoCutsForMyCribAT[i] = stoi(line);
             }
-            else if (line == VAR_PREFIX + "legacyWins"){
-                getline(saveFile, line);
-                p->legacyWins = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "histoHandPtsAT") {
+            for (int i = 0; i < 30; i++) {
+                getline(*saveFile, line);
+                p->histoHandPtsAT[i] = stoi(line);
             }
-            else if (line == VAR_PREFIX + "legacyCribSum"){
-                getline(saveFile, line);
-                p->legacyCribSum = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "histoCribPtsAT") {
+            for (int i = 0; i < 30; i++) {
+                getline(*saveFile, line);
+                p->histoCribPtsAT[i] = stoi(line);
             }
-            else if (line == VAR_PREFIX + "legacyNumHands"){
-                getline(saveFile, line);
-                p->legacyNumHands = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "histoWinMarginsAT") {
+            for (int i = 0; i < 120; i++) {
+                getline(*saveFile, line);
+                p->histoWinMarginsAT[i] = stoi(line);
             }
-                
-            else if (line == VAR_PREFIX + "histoCutsForFirstCribAT") {
-                for (int i = 0; i < 13; i++) {
-                    getline(saveFile, line);
-                    p->histoCutsForFirstCribAT[i] = stoi(line);
-                }
-            }
-            else if (line == VAR_PREFIX + "histoCutsForMyCribAT") {
-                for (int i = 0; i < 13; i++) {
-                    getline(saveFile, line);
-                    p->histoCutsForMyCribAT[i] = stoi(line);
-                }
-            }
-            else if (line == VAR_PREFIX + "histoHandPtsAT") {
-                for (int i = 0; i < 30; i++) {
-                    getline(saveFile, line);
-                    p->histoHandPtsAT[i] = stoi(line);
-                }
-            }
-            else if (line == VAR_PREFIX + "histoCribPtsAT") {
-                for (int i = 0; i < 30; i++) {
-                    getline(saveFile, line);
-                    p->histoCribPtsAT[i] = stoi(line);
-                }
-            }
-            else if (line == VAR_PREFIX + "histoWinMarginsAT") {
-                for (int i = 0; i < 120; i++) {
-                    getline(saveFile, line);
-                    p->histoWinMarginsAT[i] = stoi(line);
-                }
-            }
+        }
 
-            else if (line == VAR_PREFIX + "numFirstCribsAT"){
-                getline(saveFile, line);
-                p->numFirstCribsAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "numFirstCribsWonAT"){
-                getline(saveFile, line);
-                p->numFirstCribsWonAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "peggedPtsAt"){
-                getline(saveFile, line);
-                p->peggedPtsAt = stoi(line);
-            }
+        else if (line == VAR_PREFIX + "numFirstCribsAT"){
+            getline(*saveFile, line);
+            p->numFirstCribsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "numFirstCribsWonAT"){
+            getline(*saveFile, line);
+            p->numFirstCribsWonAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "peggedPtsAt"){
+            getline(*saveFile, line);
+            p->peggedPtsAt = stoi(line);
+        }
 
-            else if (line == VAR_PREFIX + "unusedPtsAT") {
-                for (int i = 0; i < 4; i++) {
-                    getline(saveFile, line);
-                    p->unusedPtsAT[i] = stoi(line);
-                }
+        else if (line == VAR_PREFIX + "unusedPtsAT") {
+            for (int i = 0; i < 4; i++) {
+                getline(*saveFile, line);
+                p->unusedPtsAT[i] = stoi(line);
             }
+        }
 
-            else if (line == VAR_PREFIX + "macrogamePtsAT"){
-                getline(saveFile, line);
-                p->macrogamePtsAT = stoi(line);
-            }
+        else if (line == VAR_PREFIX + "macrogamePtsAT"){
+            getline(*saveFile, line);
+            p->macrogamePtsAT = stoi(line);
+        }
 
-            else if (line == VAR_PREFIX + "macrogamePtsByMonth"){  // new addition for 2024
-                for (int i = 0; i < 12; i++) {
-                    getline(saveFile, line);
-                    p->macrogamePtsByMonth[i] = stoi(line);
-                }
+        else if (line == VAR_PREFIX + "macrogamePtsByMonth"){  // new addition for 2024
+            for (int i = 0; i < 12; i++) {
+                getline(*saveFile, line);
+                p->macrogamePtsByMonth[i] = stoi(line);
             }
+        }
 
-            else if (line == VAR_PREFIX + "numSessionsPlayedAT"){
-                getline(saveFile, line);
-                p->numSessionsPlayedAT = stoi(line);
+        else if (line == VAR_PREFIX + "numSessionsPlayedAT"){
+            getline(*saveFile, line);
+            p->numSessionsPlayedAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "numHandsAT"){
+            getline(*saveFile, line);
+            p->numHandsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "numCribsAT"){
+            getline(*saveFile, line);
+            p->numCribsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "gamesPlayedAT"){
+            getline(*saveFile, line);
+            p->gamesPlayedAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "gamesPlayedByMonth"){  // new addition for 2024
+            for (int i = 0; i < 12; i++) {
+                getline(*saveFile, line);
+                p->gamesPlayedByMonth[i] = stoi(line);
             }
-            else if (line == VAR_PREFIX + "numHandsAT"){
-                getline(saveFile, line);
-                p->numHandsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "winsAT"){
+            getline(*saveFile, line);
+            p->winsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "winsByMonth"){  // new addition for 2024
+            for (int i = 0; i < 12; i++) {
+                getline(*saveFile, line);
+                p->winsByMonth[i] = stoi(line);
             }
-            else if (line == VAR_PREFIX + "numCribsAT"){
-                getline(saveFile, line);
-                p->numCribsAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "gamesPlayedAT"){
-                getline(saveFile, line);
-                p->gamesPlayedAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "gamesPlayedByMonth"){  // new addition for 2024
-                for (int i = 0; i < 12; i++) {
-                    getline(saveFile, line);
-                    p->gamesPlayedByMonth[i] = stoi(line);
-                }
-            }
-            else if (line == VAR_PREFIX + "winsAT"){
-                getline(saveFile, line);
-                p->winsAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "winsByMonth"){  // new addition for 2024
-                for (int i = 0; i < 12; i++) {
-                    getline(saveFile, line);
-                    p->winsByMonth[i] = stoi(line);
-                }
-            }
-            else if (line == VAR_PREFIX + "nobsAT"){
-                getline(saveFile, line);
-                p->nobsAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "FOKsAT"){
-                getline(saveFile, line);
-                p->FOKsAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "flushesAT"){
-                getline(saveFile, line);
-                p->flushesAT = stoi(line);
-            }
-            else if (line == VAR_PREFIX + "superFlushesAT"){
-                getline(saveFile, line);
-                p->superFlushesAT = stoi(line);
-            }
+        }
+        else if (line == VAR_PREFIX + "nobsAT"){
+            getline(*saveFile, line);
+            p->nobsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "FOKsAT"){
+            getline(*saveFile, line);
+            p->FOKsAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "flushesAT"){
+            getline(*saveFile, line);
+            p->flushesAT = stoi(line);
+        }
+        else if (line == VAR_PREFIX + "superFlushesAT"){
+            getline(*saveFile, line);
+            p->superFlushesAT = stoi(line);
+        }
 
-            else if (line == "- - - - - - - - - -")
-                break; // next player...
+        else if (line == "- - - - - - - - - -")
+            break; // done for this player
 
-        } // /while there are lines in the file
-    } // /for each player
-    
-    if (usingBlankSaveData)
-          cout << "BLANK TEST DATA LOADED\n";
-    else  cout << "success :)\n";
+    } // /while there are lines in the file
 }
 
 
@@ -1692,14 +2053,17 @@ void saveATDataToFile() {
         saveData += VAR_PREFIX + "indtAdjstdName" + "\n";
         saveData += p->indtAdjstdName + "\n\n";
 
-        saveData += VAR_PREFIX + "legacyWins" + "\n";
-        saveData += to_string(p->legacyWins) + "\n\n";
+        saveData += VAR_PREFIX + "wins_b4_cribulator" + "\n";
+        saveData += to_string(p->wins_b4_cribulator) + "\n\n";
 
-        saveData += VAR_PREFIX + "legacyCribSum" + "\n";
-        saveData += to_string(p->legacyCribSum) + "\n\n";
+        saveData += VAR_PREFIX + "cribSum_b4_cribulator" + "\n";
+        saveData += to_string(p->cribSum_b4_cribulator) + "\n\n";
 
-        saveData += VAR_PREFIX + "legacyNumHands" + "\n";
-        saveData += to_string(p->legacyNumHands) + "\n\n";
+        saveData += VAR_PREFIX + "numHands_b4_cribulator" + "\n";
+        saveData += to_string(p->numHands_b4_cribulator) + "\n\n";
+
+        saveData += VAR_PREFIX + "macroPts_b4_cribulator" + "\n";
+        saveData += to_string(p->macroPts_b4_cribulator) + "\n\n";
 
         saveData += VAR_PREFIX + "histoCutsForFirstCribAT" + "\n";
         for (int i = 0; i < 13; i++)
@@ -1812,11 +2176,13 @@ string getlineMine() {
         if (userInput != "") {
             if (search(userInput, CORRECTION_VARIATIONS)) {
                 userWantsToCorrectRound = true;
-                printCentered(0, "~  correction  ~", 1);
+                // printCentered(0, "~  correction  ~", 1);  <-- for a more centered presentation
+                printCenteredManual(2, "~  correction  ~", 1, SCREEN_WIDTH_NARROW, 16);
             }
             return userInput;
         }
-        printCentered(1, "Woops: looks like you hit ENTER by mistake.", 2);
+        // printCentered(1, "Woops: looks like you hit ENTER by mistake.", 2);  <-- for a more centered presentation
+        printCenteredManual(2, "Woops: looks like you hit ENTER by mistake.", 2, SCREEN_WIDTH_NARROW, 43);
         cout << "What did you mean to input?  ";
     } while(true);
 }
@@ -1853,11 +2219,14 @@ void backupVariables() {
         playerBackups[i]->unusedPtsAT = players[i]->unusedPtsAT;
 
         playerBackups[i]->macrogamePtsAT = players[i]->macrogamePtsAT;
+        playerBackups[i]->macrogamePtsByMonth = players[i]->macrogamePtsByMonth;
         playerBackups[i]->numSessionsPlayedAT = players[i]->numSessionsPlayedAT;
         playerBackups[i]->numHandsAT = players[i]->numHandsAT;
         playerBackups[i]->numCribsAT = players[i]->numCribsAT;
         playerBackups[i]->gamesPlayedAT = players[i]->gamesPlayedAT;
+        playerBackups[i]->gamesPlayedByMonth = players[i]->gamesPlayedByMonth;
         playerBackups[i]->winsAT = players[i]->winsAT;
+        playerBackups[i]->winsByMonth = players[i]->winsByMonth;
         playerBackups[i]->nobsAT = players[i]->nobsAT;
         playerBackups[i]->FOKsAT = players[i]->FOKsAT;
         playerBackups[i]->flushesAT = players[i]->flushesAT;
@@ -1940,11 +2309,14 @@ void restoreBackupOfVariables() {
         players[i]->unusedPtsAT = playerBackups[i]->unusedPtsAT;
 
         players[i]->macrogamePtsAT = playerBackups[i]->macrogamePtsAT;
+        players[i]->macrogamePtsByMonth = playerBackups[i]->macrogamePtsByMonth;
         players[i]->numSessionsPlayedAT = playerBackups[i]->numSessionsPlayedAT;
         players[i]->numHandsAT = playerBackups[i]->numHandsAT;
         players[i]->numCribsAT = playerBackups[i]->numCribsAT;
         players[i]->gamesPlayedAT = playerBackups[i]->gamesPlayedAT;
+        players[i]->gamesPlayedByMonth = playerBackups[i]->gamesPlayedByMonth;
         players[i]->winsAT = playerBackups[i]->winsAT;
+        players[i]->winsByMonth = playerBackups[i]->winsByMonth;
         players[i]->nobsAT = playerBackups[i]->nobsAT;
         players[i]->FOKsAT = playerBackups[i]->FOKsAT;
         players[i]->flushesAT = playerBackups[i]->flushesAT;
@@ -1997,7 +2369,8 @@ void restoreBackupOfVariables() {
     cribber->histoCutsForMyCribAT[lastCutCardIndex]--;
     userWantsToCorrectRound = false;
     //backupWasJustRestored = true;
-    printCentered(0, "Re-enter that round", 1);
+    // printCentered(0, "Re-enter that round", 1);  <-- for a more centered presentation
+    printCenteredManual(0, "Re-enter that round", 3, SCREEN_WIDTH_NARROW, 19);
     cout << cribber->name << "'s crib\n";
 }
 
@@ -2042,7 +2415,8 @@ int mystoi(string st)  {
             return previousInvalidInputFix;
 
         previousInvalidInput = st;
-        printCentered(1, "Error: invalid input '" + st + "' detected", 2);
+        // printCentered(1, "Error: invalid input '" + st + "' detected", 2);  <-- for a more centered presentation
+        cout << "\n Error: invalid input '" + st + "' detected\n\n";
         cout << "What did you mean?  ";
         string input;
         getline(cin, input);
