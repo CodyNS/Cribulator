@@ -4,103 +4,106 @@ Molly
 ### indtAdjstdName
     Molly
 
-### legacyWins
+### wins_b4_cribulator
 0
 
-### legacyCribSum
+### cribSum_b4_cribulator
 0
 
-### legacyNumHands
+### numHands_b4_cribulator
+0
+
+### macroPts_b4_cribulator
 0
 
 ### histoCutsForFirstCribAT
-31
-31
-18
-18
-19
-15
-27
-17
-22
-28
-23
-29
-22
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### histoCutsForMyCribAT
-102
-108
-107
-94
-103
-107
-101
-94
-110
-116
-92
-114
-93
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### histoHandPtsAT
-14
-1
-154
-28
-332
-92
-406
-189
-477
-170
-242
-47
-271
-12
-100
-12
-87
-25
-7
-0
-11
-0
-2
-1
-6
 0
 0
 0
-1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 
 ### histoCribPtsAT
-123
-3
-357
-57
-265
-70
-157
-63
-102
-28
-43
-2
-39
-3
-8
-4
-10
-3
 0
 0
-1
-1
 0
 0
-2
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 0
 0
@@ -109,62 +112,6 @@ Molly
 
 ### histoWinMarginsAT
 0
-4
-3
-6
-4
-4
-5
-9
-4
-8
-6
-6
-7
-8
-8
-4
-8
-6
-4
-3
-1
-1
-1
-1
-5
-4
-2
-2
-2
-2
-1
-0
-0
-4
-1
-0
-3
-1
-1
-0
-1
-1
-0
-1
-0
-0
-2
-1
-0
-0
-0
-0
-1
-0
-0
-0
-1
 0
 0
 0
@@ -175,7 +122,63 @@ Molly
 0
 0
 0
-1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 0
 0
@@ -230,49 +233,91 @@ Molly
 0
 
 ### numFirstCribsAT
-157
+0
 
 ### numFirstCribsWonAT
-87
+0
 
 ### peggedPtsAt
-7392
+0
 
 ### unusedPtsAT
-1186
-578
 0
-18
+0
+0
+0
 
 ### macrogamePtsAT
-35371
+0
+
+### macrogamePtsByMonth
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### numSessionsPlayedAT
-87
+0
 
 ### numHandsAT
-2686
+0
 
 ### numCribsAT
-1341
+0
 
 ### gamesPlayedAT
-300
+0
+
+### gamesPlayedByMonth
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### winsAT
-148
+0
+
+### winsByMonth
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### nobsAT
-309
+0
 
 ### FOKsAT
-5
+0
 
 ### flushesAT
-91
+0
 
 ### superFlushesAT
-30
+0
 
 
 
@@ -290,71 +335,74 @@ Johnny
 ### indtAdjstdName
    Johnny
 
-### legacyWins
+### wins_b4_cribulator
 0
 
-### legacyCribSum
+### cribSum_b4_cribulator
 0
 
-### legacyNumHands
+### numHands_b4_cribulator
+0
+
+### macroPts_b4_cribulator
 0
 
 ### histoCutsForFirstCribAT
-14
-22
-22
-25
-26
-27
-28
-28
-19
-26
-27
-21
-15
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### histoCutsForMyCribAT
-113
-82
-109
-128
-104
-118
-106
-75
-114
-101
-81
-99
-116
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### histoHandPtsAT
-12
-1
-142
-36
-319
-105
-387
-163
-505
-186
-227
-36
-266
-20
-100
-14
-97
-23
-9
 0
-20
-6
-4
-1
-8
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 0
 0
@@ -362,27 +410,27 @@ Johnny
 0
 
 ### histoCribPtsAT
-127
-11
-333
-49
-252
-73
-212
-55
-99
-24
-43
-6
-37
-0
-11
-2
-11
 0
 0
 0
-1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 0
 0
@@ -395,49 +443,6 @@ Johnny
 
 ### histoWinMarginsAT
 0
-7
-7
-10
-1
-6
-5
-3
-2
-6
-4
-3
-5
-5
-5
-2
-7
-3
-4
-2
-4
-3
-3
-5
-6
-2
-6
-8
-1
-2
-3
-0
-1
-1
-3
-2
-4
-0
-1
-1
-3
-2
-0
-1
 0
 0
 0
@@ -446,13 +451,56 @@ Johnny
 0
 0
 0
-1
 0
 0
-1
 0
 0
-1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 0
 0
 0
@@ -516,49 +564,91 @@ Johnny
 0
 
 ### numFirstCribsAT
-143
+0
 
 ### numFirstCribsWonAT
-82
+0
 
 ### peggedPtsAt
-7604
+0
 
 ### unusedPtsAT
-1434
-678
 0
-22
+0
+0
+0
 
 ### macrogamePtsAT
-35985
+0
+
+### macrogamePtsByMonth
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### numSessionsPlayedAT
-87
+0
 
 ### numHandsAT
-2686
+0
 
 ### numCribsAT
-1345
+0
 
 ### gamesPlayedAT
-300
+0
+
+### gamesPlayedByMonth
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### winsAT
-152
+0
+
+### winsByMonth
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 
 ### nobsAT
-262
+0
 
 ### FOKsAT
-3
+0
 
 ### flushesAT
-96
+0
 
 ### superFlushesAT
-25
+0
 
 
 

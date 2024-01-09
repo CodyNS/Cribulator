@@ -1,11 +1,4 @@
-// Uses global variables now. This simplifies the function calls.
-// But... this still uses pointers. How can I simplify this further for JS, where you don't have pointers?
-// ...probably do some JS experimentation to see what I can do...
-
-// Future ideas?
-// - blank save data file format needs updating to include the b4_cribulator pieces and the 3 new montly histogram pieces
-// - win margin histogram
-// - largest hand and largest crib printout added to end of session screen
+// Cribulator: A Cribbage Tracker  |  Written by CodyNS, 2022 -> 2024
 
 
 #include <iostream>
@@ -20,14 +13,12 @@ using namespace std;
 // CONSTANTS (most important ones)
 const string SAVE_FILE_NAME = "cribulator_player_save_data.txt";  // save file for current year
 const string SAVE_FILE_LEGACY_NAME = "cribulator_legacy_player_data.txt";  // combined save data for all time before this year
-
 const string BLANK_SAVE_FILE_INPUT_NAME = "test_(blank)_save_data.txt";
 const string BLANK_SAVE_FILE_OUTPUT_NAME = "test_save_data_output.txt";
 const string VAR_PREFIX = "### ";
 const int SCREEN_WIDTH = 140;
 const int SCREEN_WIDTH_NARROW = 45;
 const int MAX_HEIGHT_VERTICAL_HISTO_BAR = 30;
-
 
 
 struct Player {
@@ -106,6 +97,7 @@ const bool CRIBBER_WINS = true;
 const bool NON_CRIBBER_WINS = true;
 const bool SOMEONE_HAS_WON = true;
 const string INDENTATION = "\t\t\t";  // BLAH why aren't the following ones capitalized?
+const vector<string> TOGGLE_PRESENTATION_STYLE_VARIATIONS = {"tog", "nar", "cen", "disp"};
 const vector<string> CORRECTION_VARIATIONS = {"fix", "correct", "undo", "redo", "mistake", "oops", "woops"};
 const vector<string> HISTO_VARIATIONS = {"histo", "hist", "histogram"};
 const vector<string> WIN_VARIATIONS = {"w", "win"};
@@ -118,6 +110,7 @@ const vector<string> NUMBERS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 
 
 // GLOBAL VARIABLES (gasp)
+bool NARROW_PRESENTATION = true;  // flag for toggling presentation style (enter: "toggle" during game)
 bool usingBlankSaveData = false;  // flips to true if blank save data file is found
 bool userWantsToCorrectRound = false;      // flag used to trigger the correction mechanism
 bool userWantsToCorrect1stCribCut = false;
@@ -213,8 +206,10 @@ int main() {
     string userInput;
     
     initializeStuff();
-    //printCentered(3, "* * * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * * *", 1);  <-- for a more centered presentation
-    printCenteredManual(3, "* * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * *", 3, 45, 44);
+
+    if (NARROW_PRESENTATION)  printCenteredManual(3, "* * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * *", 3, 45, 44);
+    else  printCentered(3, "* * * *  MOLLY & JOHNNY'S CRIBULATOR!!!  * * * *", 1);
+    
 
     do {  // game loop ------------------------------
         if (!userWantsToCorrect1stCribCut)
@@ -480,9 +475,11 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
                        // so I'll have mind the order in which I calculate stuff...
 
     if (search(winCondition, "nibs win") ){
-        // printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);  <--- for a more centered presentation
-        printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, 
-                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
+        if (NARROW_PRESENTATION)  
+            printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, SCREEN_WIDTH_NARROW, 
+                                string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length() );
+        else  
+            printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;  // user wants to make a correction; no winner rn
         cribber->unusedPtsThisGame[NIBS] += (2 - mystoi(userInput) );
@@ -696,9 +693,11 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
 
 
     else if (search(winCondition, "nonCribber wins via hand") ){
-        // printCentered(1, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3); <--- for a more centered presentation
-        printCenteredManual(2, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3, 
-                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~").length());
+        if (NARROW_PRESENTATION)
+            printCenteredManual(2, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3, SCREEN_WIDTH_NARROW, 
+                                string("~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~").length());
+        else
+            printCentered(1, "~ ~ ~  " + nonCribber->name + " wins!  ~ ~ ~", 3);
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
         nonCribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
@@ -760,10 +759,11 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
 
 
     else if (search(winCondition, "cribber wins via hand") ){
-        // printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);   <-- for a more centered presentation
-        printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, 
-                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
-
+        if (NARROW_PRESENTATION)
+            printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, SCREEN_WIDTH_NARROW, 
+                                string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
+        else
+            printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
         cribber->unusedPtsThisGame[HAND] += (ptsInWinningInput - mystoi(userInput) );
@@ -815,9 +815,11 @@ Player* winHandler(string winCondition, int ptsInWinningInput) {
 
 
     else if (search(winCondition, "cribber wins via crib") ){
-        // printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);   <-- for a more centered presentation
-        printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, 
-                            SCREEN_WIDTH_NARROW, string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
+        if (NARROW_PRESENTATION)
+            printCenteredManual(2, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3, SCREEN_WIDTH_NARROW,
+                                string("~ ~ ~  " + cribber->name + " wins!  ~ ~ ~").length());
+        else
+            printCentered(1, "~ ~ ~  " + cribber->name + " wins!  ~ ~ ~", 3);
         cout << "How many points were needed?  ";
         userInput = getlineMine();  if (userWantsToCorrectRound)  return NULL;
         cribber->unusedPtsThisGame[CRIB] += (ptsInWinningInput - mystoi(userInput) );
@@ -912,42 +914,13 @@ void updatePlayerDataAfterGame() {
 }
 
 
-// void printEndOfGameStuff() {  
-// // calculate and display the stats you want to at the end of a game:
-//     printCentered(1, "Congratulations " + winner->name + "!", 1);
-//     string winWord;
-//     if (winner->winsToday == 1)
-//         winWord = "1st";
-//     else if (winner->winsToday == 2)
-//         winWord = "2nd";
-//     else if (winner->winsToday == 3)
-//         winWord = "3rd";
-//     else 
-//         winWord = "" + to_string(winner->winsToday) + "th";
-//     printCentered(0, "That's your " + winWord + " win today!", 3);
-
-//     printCentered(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2);
-//     // points breakdown for the winner
-//     printPointsBreakdownForPlayerThisGame(winner);
-//     cout << endl;
-//     // points breakdown for the loser
-//     // will do it, but problem:  loser's unused pts have been added to their 'ThisGame' variables already,
-//     // ... so the numbers won't be correct for them as it stands... how to fix this?
-//     printPointsBreakdownForPlayerThisGame(determineLoser());
-//     cout << endl;
-
-//     // xxx pts (Leader) to yyy pts (Trailer) in today's macro-game thus far...  
-
-
-//     // any average/combined stats of interest?
-
-
-//     cout << endl;
-// }                            // ^---- use this version for a more centered presentation
 void printEndOfGameStuff() {
 // calculate and display the stats you want to at the end of a game:
-    printCenteredManual(2, "Congratulations " + winner->name + "!", 1, 
-                        SCREEN_WIDTH_NARROW, string("Congratulations " + winner->name + "!").length());
+    if (NARROW_PRESENTATION)
+        printCenteredManual(2, "Congratulations " + winner->name + "!", 1, SCREEN_WIDTH_NARROW, 
+                            string("Congratulations " + winner->name + "!").length());
+    else
+        printCentered(1, "Congratulations " + winner->name + "!", 1);
     string winWord;
     if (winner->winsToday == 1)
         winWord = "1st";
@@ -957,17 +930,26 @@ void printEndOfGameStuff() {
         winWord = "3rd";
     else 
         winWord = "" + to_string(winner->winsToday) + "th";
-    printCenteredManual(0, "That's your " + winWord + " win today!", 4, 
-                        SCREEN_WIDTH_NARROW, string("That's your " + winWord + " win today!").length());
 
-    printCenteredManual(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2, 
-                        SCREEN_WIDTH_NARROW, string("Game " + to_string(players[0]->gamesPlayedToday)).length());
+    if (NARROW_PRESENTATION)
+        printCenteredManual(0, "That's your " + winWord + " win today!", 4, 
+                            SCREEN_WIDTH_NARROW, string("That's your " + winWord + " win today!").length());
+    else
+        printCentered(0, "That's your " + winWord + " win today!", 3);
+
+    if (NARROW_PRESENTATION)
+        printCenteredManual(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2,  SCREEN_WIDTH_NARROW, 
+                            string("Game " + to_string(players[0]->gamesPlayedToday) + " stats:").length());
+    else
+        printCentered(0, "Game " + to_string(players[0]->gamesPlayedToday) + " stats:", 2);
+
     // points breakdown for the winner
     printPointsBreakdownForPlayerThisGame(winner);
     cout << endl;
     // points breakdown for the loser
     // will do it, but problem:  loser's unused pts have been added to their 'ThisGame' variables already,
     // ... so the numbers won't be correct for them as it stands... how to fix this?
+    //           ^--- future self: not sure if this is still a problem. I might have fixed this...
     printPointsBreakdownForPlayerThisGame(determineLoser());
     cout << endl;
 
@@ -984,8 +966,11 @@ void printEndOfGameStuff() {
 void printPointsBreakdownForPlayerThisGame(Player* p) {
 // BLAH: use printf() for this to simplify the formatting
     cout << setprecision(0) << fixed;
-    // const string BD_INDENT = "                                    "; <-- for a more centered presentation
-    const string BD_INDENT = "                        ";
+    string BD_INDENT;
+    if (NARROW_PRESENTATION)
+        BD_INDENT = "                        ";
+    else
+        BD_INDENT = "                                    ";
 
     int strictHandPts = p->handPtsThisGame - p->unusedPtsThisGame[HAND];
     int strictCribPts = p->cribPtsThisGame - p->unusedPtsThisGame[CRIB];
@@ -998,9 +983,10 @@ void printPointsBreakdownForPlayerThisGame(Player* p) {
     double nibsPercent = (strictNibsPts * 100.0) / (finPos * 1.0);
     double peggedPercent = (strictPeggedPts * 100.0) / (finPos * 1.0);
 
-    // cout << "           "                 <-- for a more centered presentation
-    cout << ""
-         << ((finPos > 99) ? "" : " ") << p->indtAdjstdName << "'s " 
+    if ( ! NARROW_PRESENTATION )
+        cout << "           ";
+
+    cout << ((finPos > 99) ? "" : " ") << p->indtAdjstdName << "'s " 
          << finPos << " pts:" << endl;
 
     cout << BD_INDENT << strictHandPts << "  hands"
@@ -1318,9 +1304,12 @@ int cardIndexOf(string card) {
     if (search(card, "a"))  return 0;
     if (search(card, "A"))  return 0;
 
-    // printCentered(1, "Error: '" + card + "' is not a valid card", 2);  <-- for a more centered presentation
-    printCenteredManual(1, "Error: '" + card + "' is not a valid card", 2, 
-                        SCREEN_WIDTH_NARROW, string("Error: '" + card + "' is not a valid card").length());
+    if (NARROW_PRESENTATION)
+        printCenteredManual(1, "Error: '" + card + "' is not a valid card", 2, SCREEN_WIDTH_NARROW, 
+                            string("Error: '" + card + "' is not a valid card").length());
+    else
+        printCentered(1, "Error: '" + card + "' is not a valid card", 2);
+
     cout << "What card did you mean?  ";
     string secondTry = getlineMine();
     return cardIndexOf(secondTry);
@@ -1342,9 +1331,11 @@ string cardStringForIndex(int cardIndex) {
     if (2  == cardIndex)  return "3";
     if (1  == cardIndex)  return "2";
     if (0  == cardIndex)  return "A";
-    
-    // printCentered(2, "Error: '" + to_string(cardIndex) + "' is not a valid card index", 2);  <-- for a more centered presentation
-    cout << "\n Error: '" + to_string(cardIndex) + "' is not a valid card index\n\n";
+
+    if (NARROW_PRESENTATION)
+        cout << "\n Error: '" + to_string(cardIndex) + "' is not a valid card index\n\n";
+    else
+        printCentered(2, "Error: '" + to_string(cardIndex) + "' is not a valid card index", 2);
     cout << "Exiting program...\n\n\n";
     exit(1);
 }
@@ -1383,8 +1374,10 @@ int pointValueOf(string userInput) {
     if (search(userInput, "1"))  return 1;
     if (search(userInput, "0"))  return 0;
 
-    // printCentered(2, "Error: '" + userInput + "' is not a possible score", 2);  <-- for a more centered presentation
-    cout << "\n\n Error: '" + userInput + "' is not a possible score\n\n";
+    if (NARROW_PRESENTATION)
+        cout << "\n\n Error: '" + userInput + "' is not a possible score\n\n";
+    else
+        printCentered(2, "Error: '" + userInput + "' is not a possible score", 2);
     cout << "   Re-enter value:  ";
     string secondTry = getlineMine();
     return pointValueOf(secondTry);
@@ -2168,21 +2161,33 @@ void saveATDataToFile() {
 
 
 string getlineMine() {
-// performs getline(cin, string) but does not allow null input.
+// performs getline(cin, string) but does not allow empty input.
 // It forces the user to enter something.
+// Also processes presentation style toggle requests (narrow vs centered)
     string userInput;
     do {
         getline(cin, userInput);
-        if (userInput != "") {
+        if (search(userInput, TOGGLE_PRESENTATION_STYLE_VARIATIONS)) {
+            NARROW_PRESENTATION = !NARROW_PRESENTATION;
+            if (NARROW_PRESENTATION)
+                printCenteredManual(2, "~ presentation style toggled ~", 1, SCREEN_WIDTH_NARROW, 30);
+            else
+                printCentered(0, "~ presentation style toggled ~", 1);
+        }
+        else if (userInput != "") {
             if (search(userInput, CORRECTION_VARIATIONS)) {
                 userWantsToCorrectRound = true;
-                // printCentered(0, "~  correction  ~", 1);  <-- for a more centered presentation
-                printCenteredManual(2, "~  correction  ~", 1, SCREEN_WIDTH_NARROW, 16);
+                if (NARROW_PRESENTATION)
+                    printCenteredManual(2, "~  correction  ~", 1, SCREEN_WIDTH_NARROW, 16);
+                else
+                    printCentered(0, "~  correction  ~", 1);
             }
             return userInput;
         }
-        // printCentered(1, "Woops: looks like you hit ENTER by mistake.", 2);  <-- for a more centered presentation
-        printCenteredManual(2, "Woops: looks like you hit ENTER by mistake.", 2, SCREEN_WIDTH_NARROW, 43);
+        if (NARROW_PRESENTATION)
+            printCenteredManual(2, "Woops: looks like you hit ENTER by mistake.", 2, SCREEN_WIDTH_NARROW, 43);
+        else
+            printCentered(1, "Woops: looks like you hit ENTER by mistake.", 2);
         cout << "What did you mean to input?  ";
     } while(true);
 }
@@ -2369,8 +2374,10 @@ void restoreBackupOfVariables() {
     cribber->histoCutsForMyCribAT[lastCutCardIndex]--;
     userWantsToCorrectRound = false;
     //backupWasJustRestored = true;
-    // printCentered(0, "Re-enter that round", 1);  <-- for a more centered presentation
-    printCenteredManual(0, "Re-enter that round", 3, SCREEN_WIDTH_NARROW, 19);
+    if (NARROW_PRESENTATION)
+        printCenteredManual(0, "Re-enter that round", 3, SCREEN_WIDTH_NARROW, 19);
+    else
+        printCentered(0, "Re-enter that round", 1);
     cout << cribber->name << "'s crib\n";
 }
 
@@ -2415,8 +2422,8 @@ int mystoi(string st)  {
             return previousInvalidInputFix;
 
         previousInvalidInput = st;
-        // printCentered(1, "Error: invalid input '" + st + "' detected", 2);  <-- for a more centered presentation
-        cout << "\n Error: invalid input '" + st + "' detected\n\n";
+        if (NARROW_PRESENTATION)  cout << "\n Error: invalid input '" + st + "' detected\n\n";
+        else  printCentered(1, "Error: invalid input '" + st + "' detected", 2);
         cout << "What did you mean?  ";
         string input;
         getline(cin, input);
@@ -2429,9 +2436,8 @@ int mystoi(string st)  {
 
 
 bool handleStatsRequests(string userInput) {
-// Precondition:  players is {*molly, *johnny}, in that order
-// Postcondition:  Displays any stats requested. 
-//                 Returns true if they were requested, false otherwise.
+// Displays any stats requested. 
+// Returns true if they were requested, false otherwise.
     if (search(userInput, HISTO_VARIATIONS)) {
         printHistogram(userInput);
         userWantsToCorrectRound = false;  // ignore any correction requests in input that has a histo request
